@@ -12,7 +12,7 @@ const BASE = (process.env.NEXT_PUBLIC_BASE_PATH || '') + '/assets/opening/';
 const src = (name: string) => BASE + name + '.svg';
 const SW = 1920, SH = 1080;
 type Phase = 'loading' | 'ready' | 'playing' | 'hero' | 'goal' | 'portfolio';
-const LIVE: Record<Phase, string> = { loading: 'Loading the episode', ready: 'Title screen. Press Kick off to start.', playing: 'Opening scene playing: a ball falls from the sky and Jwandini controls it.', hero: 'Jwandini stands with his foot on the ball. Press Meet Jwandini to continue.', goal: 'Jwandini dribbles toward goal and scores in the top corner.', portfolio: 'Portfolio. Use the section tabs to explore.' };
+const LIVE: Record<Phase, string> = { loading: 'Loading the episode', ready: 'Title screen. Press Kick off to start.', playing: 'Opening scene playing: a ball falls from the sky and Jwan Sidou controls it.', hero: 'Jwan Sidou stands with his foot on the ball. Press Meet Jwan Sidou to continue.', goal: 'Jwan Sidou dribbles toward goal and scores in the top corner.', portfolio: 'Portfolio. Use the section tabs to explore.' };
 
 const PRELOAD = Object.keys(manifest.files);
 const OPEN_CUTS: [string, number][] = [['s2', 0], ['s3', 1.4], ['s4', 3.1], ['s5', 4.25], ['s6', 5.45], ['s7', 6.5], ['s8', 7.7]];
@@ -131,7 +131,7 @@ export default function OpeningScene() {
     T.to('[data-ball="s2"]', { y: 900, scale: 2.2, duration: .55, ease: 'power2.in' }, .85);
     T.fromTo('[data-k="sky-streak"]', { opacity: 0 }, { opacity: .8, duration: .2 }, .9);
 
-    /* S3 — wide: ball dropping toward the centre circle, Jwandini sprints in */
+    /* S3 — wide: ball dropping toward the centre circle, Jwan Sidou sprints in */
     show('s3', 1.4); flash(1.4, .55, .1);
     T.fromTo('[data-shot="s3"] [data-cam]', { scale: 1 }, { scale: 1.06, duration: 1.7, ease: 'none', transformOrigin: '50% 70%' }, 1.4);
     T.fromTo('[data-k="wclouds"]', { x: 0 }, { x: -40, duration: 1.7, ease: 'none' }, 1.4);
@@ -297,7 +297,7 @@ export default function OpeningScene() {
     setPhase('playing');
     tl.current?.play(0);
   };
-  /* "Meet Jwandini": the football action, then the portfolio */
+  /* "Meet Jwan Sidou": the football action, then the portfolio */
   const meet = () => {
     if (reduced) { setPhase('portfolio'); return; }
     gl.current?.kill();
@@ -408,7 +408,7 @@ export default function OpeningScene() {
           <div className={css.cutPanel} data-k="gpanel3">
             <img className={css.cutFace} data-k="gface3" alt="" src={src('face-shout')} />
           </div>
-          <div className={css.moveName} data-k="gname3"><small>必殺技 · SPECIAL MOVE</small><strong>BLAUGRANA DRIVE</strong></div>
+          <div className={css.moveName} data-k="gname3"><small>必殺技 · SPECIAL MOVE</small><strong>TIGER SHOT</strong></div>
         </div></div>
         {/* G4 the strike */}
         <div className={css.shot} data-shot="g4"><div className={css.cam} data-cam>
@@ -441,18 +441,18 @@ export default function OpeningScene() {
       {phase === 'ready' && (
         <div className={css.title}>
           <p className={css.kicker}>第1話 · Episode 01</p>
-          <h1 className={css.h1}>JWANDINI <b>#18</b></h1>
+          <h1 className={css.h1}>JWAN SIDOU <b>#18</b></h1>
           <p className={css.sub}>Software for the beautiful game</p>
           <button className={css.cta} onClick={start} autoFocus>Kick off</button>
         </div>
       )}
       {phase === 'hero' && (
         <div className={css.end}>
-          <p className={css.kicker}>No. 18 · Forward</p>
-          <h2 className={css.h2}>Jwandini <b>#18</b></h2>
-          <p className={css.sub}>{cv.role} · {cv.tagline.toLowerCase()}</p>
+          <p className={css.kicker}>No. 18 · CDM</p>
+          <h2 className={css.h2}>Jwan Sidou <b>#18</b></h2>
+          <p className={css.sub}>{cv.role} · {cv.football.positionLong}</p>
           <div className={css.row}>
-            <button className={css.cta} onClick={meet} autoFocus>Meet Jwandini</button>
+            <button className={css.cta} onClick={meet} autoFocus>Meet Jwan Sidou</button>
           </div>
         </div>
       )}

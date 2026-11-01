@@ -2,7 +2,7 @@
 // The portfolio "after the goal": six broadcast-style chapters in the same anime world as the episode.
 import { useEffect, useRef, useState, KeyboardEvent } from 'react';
 import gsap from 'gsap';
-import { cv } from '../../content/cv';
+import { cv, Entry } from '../../content/cv';
 import css from './portfolio.module.css';
 
 const BASE = (process.env.NEXT_PUBLIC_BASE_PATH || '') + '/assets/opening/';
@@ -32,37 +32,37 @@ function About() {
     <div className={css.aboutGrid}>
       <figure className={css.card} data-anim>
         <div className={css.cardNo} aria-hidden>18</div>
-        <img className={css.cardFace} src={BASE + 'face-focus.svg'} alt="Jwandini, drawn in anime style: dark brown flow middle-part hair, moustache, Blaugrana kit" />
-        <figcaption className={css.cardName}><strong>JWANDINI</strong><span>{cv.role}</span></figcaption>
+        <div className={css.cardPos} aria-hidden>{cv.football.position}</div>
+        <img className={css.cardFace} src={BASE + 'face-focus.svg'} alt="Jwan Sidou, drawn in anime style: dark brown flow middle-part hair, moustache, Blaugrana kit" />
+        <figcaption className={css.cardName}><strong>JWAN SIDOU</strong><span>{cv.football.positionLong} · {cv.role}</span></figcaption>
       </figure>
       <div className={css.aboutText}>
         {cv.about.map((p, i) => <p key={i} className={css.lead} data-anim>{p}</p>)}
         <dl className={css.stats} data-anim>
           {cv.stats.map((s) => <div key={s.label}><dt>{s.label}</dt><dd>{s.value}</dd></div>)}
         </dl>
+        <section className={css.pitch} data-anim aria-label="On the pitch">
+          <h3 className={css.h3}>On the pitch · {cv.football.position}</h3>
+          <p>{cv.football.role}</p>
+        </section>
+        <section data-anim aria-label="Languages">
+          <h3 className={css.h3}>Languages</h3>
+          <ul className={css.chips}>
+            {cv.languages.map((l) => <li key={l.name} className={css.chip}><strong>{l.name}</strong><span>{l.level}</span></li>)}
+          </ul>
+        </section>
       </div>
     </div>
   );
 }
-function Skills({ reduced }: { reduced: boolean }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (reduced || !ref.current) return;
-    gsap.fromTo(ref.current.querySelectorAll('[data-bar]'), { scaleX: 0 }, { scaleX: 1, duration: .8, ease: 'power3.out', stagger: .04, delay: .25 });
-  }, [reduced]);
+function Skills() {
   return (
-    <div ref={ref} className={css.skillGrid}>
+    <div className={css.skillGrid}>
       {cv.skills.map((g) => (
         <section key={g.group} className={css.skillCard} data-anim aria-label={g.group}>
           <h3 className={css.h3}>{g.group}</h3>
-          <ul className={css.bars}>
-            {g.items.map(([name, v]) => (
-              <li key={name}>
-                <span className={css.barName}>{name}</span>
-                <span className={css.barTrack} role="img" aria-label={`${name}: ${v} out of 100`}><i data-bar style={{ width: `${v}%` }} /></span>
-                <b className={css.barVal} aria-hidden>{v}</b>
-              </li>
-            ))}
+          <ul className={css.chips}>
+            {g.items.map((name) => <li key={name} className={css.chip}><strong>{name}</strong></li>)}
           </ul>
         </section>
       ))}
@@ -81,24 +81,26 @@ function Projects() {
             <span className={css.tag}>{p.tag}</span>
             <h3 className={css.h3}>{p.title}</h3>
             <p>{p.text}</p>
-            <a className={css.link} href={p.link}>View project <span aria-hidden>→</span></a>
+            <a className={css.link} href={p.link} target="_blank" rel="noreferrer">View on GitHub <span aria-hidden>→</span></a>
           </div>
         </li>
       ))}
     </ul>
   );
 }
-function Timeline({ items, badge }: { items: { when: string; title: string; place: string; text: string }[]; badge: string }) {
+function Timeline({ items, badge }: { items: Entry[]; badge: string }) {
   return (
     <ol className={css.fixtures}>
       {items.map((e) => (
-        <li key={e.title + e.when} className={css.fixture} data-anim>
+        <li key={e.title + e.place + e.when} className={css.fixture} data-anim>
           <span className={css.when}>{e.when}</span>
           <span className={css.badge} aria-hidden>{badge}</span>
           <div>
             <h3 className={css.h3}>{e.title}</h3>
-            <p className={css.place}>{e.place}</p>
-            <p>{e.text}</p>
+            <p className={css.place}>{e.place}{e.location ? ` · ${e.location}` : ''}</p>
+            {e.tags && <ul className={css.tags}>{e.tags.map((t) => <li key={t}>{t}</li>)}</ul>}
+            {e.note && <p>{e.note}</p>}
+            {e.points && <ul className={css.points}>{e.points.map((pt) => <li key={pt}>{pt}</li>)}</ul>}
           </div>
         </li>
       ))}
@@ -108,10 +110,14 @@ function Timeline({ items, badge }: { items: { when: string; title: string; plac
 function Contact({ onReplay }: { onReplay: () => void }) {
   return (
     <div className={css.contract} data-anim>
-      <p className={css.lead}>Looking for a software engineer who understands both the code and the game? Let&apos;s talk.</p>
+      <p className={css.lead}>{cv.status}. The quickest way to reach me is by email.</p>
       <ul className={css.links}>
         {cv.links.map((l) => (
-          <li key={l.label}><a className={css.bigLink} href={l.href} target={l.href.startsWith('http') ? '_blank' : undefined} rel="noreferrer"><small>{l.label}</small><span>{l.value}</span></a></li>
+          <li key={l.label}>
+            {l.href
+              ? <a className={css.bigLink} href={l.href} target={l.href.startsWith('http') ? '_blank' : undefined} rel="noreferrer"><small>{l.label}</small><span>{l.value}</span></a>
+              : <div className={css.bigLink}><small>{l.label}</small><span>{l.value}</span></div>}
+          </li>
         ))}
       </ul>
       <button className={css.replay} onClick={onReplay}>Replay the episode</button>
@@ -154,7 +160,7 @@ export default function Portfolio({ onReplay, reduced }: { onReplay: () => void;
     else if (e.key === 'End') { e.preventDefault(); go(SECTIONS.length - 1); }
   };
   const S = SECTIONS[idx];
-  const titles: Record<Id, string> = { about: 'Player profile', skills: 'Attributes', projects: 'Highlight reel', experience: 'Career', education: 'Academy', contact: 'Sign Jwandini' };
+  const titles: Record<Id, string> = { about: 'Player profile', skills: 'Attributes', projects: 'Highlight reel', experience: 'Career', education: 'Academy', contact: 'Sign Jwan Sidou' };
 
   return (
     <div ref={root} className={css.root}>
@@ -162,10 +168,10 @@ export default function Portfolio({ onReplay, reduced }: { onReplay: () => void;
         <img src={BASE + 'low-sky.svg'} alt="" /><img src={BASE + 'low-ground.svg'} alt="" />
       </div>
       <div className={css.frame}>
-        <h1 className={css.srOnly}>Jwandini #18, software engineering student: portfolio</h1>
+        <h1 className={css.srOnly}>Jwan Sidou #18, software engineering student: portfolio</h1>
         <header className={css.top}>
-          <div className={css.brand}><strong>JWANDINI</strong><b>#18</b><span>{cv.tagline}</span></div>
-          <div className={css.score} aria-label="Score: Jwandini 1, opposition 0, 90th minute">
+          <div className={css.brand}><strong>JWAN SIDOU</strong><b>#18</b><span>{cv.football.position} · {cv.tagline}</span></div>
+          <div className={css.score} aria-label="Score: Jwan Sidou 1, opposition 0, 90th minute">
             <span>JWA</span><b>1 – 0</b><span>OPP</span><i>90&apos;</i>
           </div>
         </header>
@@ -182,9 +188,9 @@ export default function Portfolio({ onReplay, reduced }: { onReplay: () => void;
         <div ref={panel} className={css.panel} role="tabpanel" id={`panel-${S.id}`} aria-labelledby={`tab-${S.id}`}>
           <Heading no={S.no} en={S.en} jp={S.jp} title={titles[S.id]} />
           {S.id === 'about' && <About />}
-          {S.id === 'skills' && <Skills reduced={reduced} />}
+          {S.id === 'skills' && <Skills />}
           {S.id === 'projects' && <Projects />}
-          {S.id === 'experience' && <Timeline items={cv.experience} badge="FT" />}
+          {S.id === 'experience' && <><h3 className={css.group}>Work</h3><Timeline items={cv.experience} badge="FT" /><h3 className={css.group}>Volunteering</h3><Timeline items={cv.volunteering} badge="VOL" /></>}
           {S.id === 'education' && <Timeline items={cv.education} badge="AC" />}
           {S.id === 'contact' && <Contact onReplay={onReplay} />}
         </div>

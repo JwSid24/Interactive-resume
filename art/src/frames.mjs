@@ -1,4 +1,4 @@
-// The nine key poses of the opening scene. Each frame composes background layers, the ball and Jwandini.
+// The nine key poses of the opening scene. Each frame composes background layers, the ball and Jwan Sidou.
 import { CAM, sky, cloud, cloudsWide, stadium, pitch, skyUp, grassClose, rng, WD, HD } from './env.mjs';
 import { ball, ballMotion } from './ball.mjs';
 import { figure, POSES, LEN, legFK, soleY, solePoint, instepPoint, at } from './pose.mjs';
@@ -73,7 +73,7 @@ export const FRAMES = [
   { id: 'ball-falling', draw: () => wideBG() + shadow(930, 742, 26, 7, .25)
       + streaks(930, 330, 930, 40, 16, 5, '#FFFFFF', .55, [80, 240]) + ballMotion(930, 330, 40, 0, -90, .9) + grade() },
 
-  { id: 'jwandini-enters', draw: () => {
+  { id: 'player-enters', draw: () => {
       const fig = figure(POSES.run1), s = .36, gy = 930;
       return wideBG() + shadow(1060, 790, 18, 5, .3) + ballMotion(1080, 170, 20, 0, -50, .7)
         + streaks(260, 860, 0, 860, 18, 9, '#FFFFFF', .5, [80, 220]) + shadow(400, gy, 80, 12, .35)

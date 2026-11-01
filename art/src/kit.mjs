@@ -1,4 +1,4 @@
-// Shared palette + tiny SVG helpers for the Jwandini model sheet.
+// Shared palette + tiny SVG helpers for the Jwan Sidou model sheet.
 // Every shape is authored once in a local "head unit" space (HU = 100, y = 0 at the top of the skull)
 // and mirrored/moved with xf(), so all views come from the same drawings.
 

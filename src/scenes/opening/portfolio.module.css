@@ -109,3 +109,16 @@
 .tab:focus-visible { outline: none; box-shadow: inset 0 0 0 3px #E9B83A; color: #fff; }
 .arrow:focus-visible, .replay:focus-visible, .replaySmall:focus-visible, .bigLink:focus-visible, .link:focus-visible { outline: 3px solid #E9B83A; outline-offset: 3px; }
 .h2:focus-visible { outline: none; }
+
+/* content additions */
+.cardPos { position: absolute; right: 14px; top: 18px; z-index: 1; padding: 6px 10px; background: #241418; color: #E9B83A; font: 400 30px/1 Impact, sans-serif; letter-spacing: .06em; border: 2px solid #E9B83A; }
+.pitch { margin: 18px 0; padding: 14px 16px; border-left: 4px solid #A3123F; background: rgba(255, 255, 255, .06); border-radius: 4px; }
+.pitch p { margin: 0; line-height: 1.55; color: rgba(255, 255, 255, .85); }
+.chips { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { display: inline-flex; align-items: baseline; gap: 8px; padding: 8px 12px; border-radius: 4px; background: rgba(255, 255, 255, .09); border-bottom: 2px solid #E9B83A; font-size: 15px; }
+.chip span { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: rgba(255, 255, 255, .65); }
+.group { margin: 22px 0 10px; font: 800 13px/1 system-ui, sans-serif; letter-spacing: .2em; text-transform: uppercase; color: #E9B83A; }
+.group:first-child { margin-top: 0; }
+.tags { list-style: none; margin: 0 0 8px; padding: 0; display: flex; gap: 6px; flex-wrap: wrap; }
+.tags li { padding: 3px 8px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, .3); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: rgba(255, 255, 255, .8); }
+.points { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 4px; color: rgba(255, 255, 255, .82); line-height: 1.5; }

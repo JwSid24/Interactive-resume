@@ -1,4 +1,4 @@
-// Builds art/model-sheet/jwandini-model-sheet.svg — the reference every scene is drawn from.
+// Builds art/model-sheet/jwan-sidou-model-sheet.svg — the reference every scene is drawn from.
 // Flags: --heads / --bodies write quick preview sheets instead.
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -49,9 +49,9 @@ if (process.argv.includes('--heads')) {
   let b = '';
   // header
   b += `<rect width="${Wd}" height="118" fill="${C.INK}"/>`;
-  b += text(48, 78, 'JWANDINI', 64, { font: DISPLAY, fill: '#F7F3EA', weight: 400, ls: 4 }) + text(330, 78, '#18', 64, { font: DISPLAY, fill: C.GOLD, weight: 400 });
-  b += text(470, 74, 'CHARACTER MODEL SHEET', 30, { fill: '#F7F3EA', ls: 6 }) + text(470, 100, 'キャラクター設定　ジュワンディーニ', 20, { fill: C.GOLD, font: JP });
-  b += text(Wd - 48, 66, 'Forward · age 20 · 6.5 heads tall · right-footed', 24, { fill: '#F7F3EA', anchor: 'end', weight: 500 });
+  b += text(48, 78, 'JWAN SIDOU', 64, { font: DISPLAY, fill: '#F7F3EA', weight: 400, ls: 4 }) + text(452, 78, '#18', 64, { font: DISPLAY, fill: C.GOLD, weight: 400 });
+  b += text(590, 74, 'CHARACTER MODEL SHEET', 30, { fill: '#F7F3EA', ls: 6 }) + text(590, 100, 'キャラクター設定　ジュワン・シドウ', 20, { fill: C.GOLD, font: JP });
+  b += text(Wd - 48, 66, 'CDM · Central Defensive Midfielder · 6.5 heads tall', 24, { fill: '#F7F3EA', anchor: 'end', weight: 500 });
   b += text(Wd - 48, 98, 'v4 · athletic build · espresso flow middle part + moustache · final approval', 20, { fill: '#B9AE9A', anchor: 'end', weight: 500 });
 
   // turnaround with head-unit guides
@@ -91,7 +91,7 @@ if (process.argv.includes('--heads')) {
     'Eyes: large warm brown, amber lower iris, sharp outer lash flick.',
     'Shading: two-tone cel. Skin shadow warm, fabric shadow cool violet.',
     'Line: outer silhouette 3.0, inner 1.6, details 1.0 (at 1 HU = 100).',
-    'Kit: blaugrana stripes, no crest, no sponsors. Gold JWANDINI 18.',
+    'Kit: blaugrana stripes, no crest, no sponsors. Gold JWAN SIDOU 18.',
     'Boots: black, gold laces panel + gold side flash + gold heel tab.',
   ];
   notes.forEach((n, i) => { b += text(2980, 936 + i * 36, n, 20, { weight: 500 }); });
@@ -124,12 +124,12 @@ if (process.argv.includes('--heads')) {
   b += panel(2720, 1550, 1240, 1550, 'KIT · BOOTS · SOCKS', 'ユニフォーム');
   b += crop(2750, 1620, 580, 620, '-110 100 220 235', bodyBack());
   b += crop(3350, 1620, 580, 620, '-110 100 220 235', bodyFront());
-  b += text(2770, 2270, 'Back: gold JWANDINI arc + 18', 20) + text(3370, 2270, 'Front: garnet V-collar, gold edge', 20);
+  b += text(2770, 2270, 'Back: gold JWAN SIDOU arc + 18', 20) + text(3370, 2270, 'Front: garnet V-collar, gold edge', 20);
   b += crop(2750, 2300, 580, 700, '-45 440 120 225', bodySide());
   b += crop(3350, 2300, 580, 700, '-70 440 150 225', bodyFront());
   b += text(2770, 3040, 'Boot: black, gold lace panel,', 20) + text(2770, 3068, 'gold flash + heel tab, light studs', 20, { weight: 500 });
   b += text(3370, 3040, 'Socks: blue, garnet band', 20) + text(3370, 3068, 'with gold stripe, below the knee', 20, { weight: 500 });
 
-  writeFileSync(resolve(root, 'jwandini-model-sheet.svg'), svg(Wd, Hd, b));
+  writeFileSync(resolve(root, 'jwan-sidou-model-sheet.svg'), svg(Wd, Hd, b));
   console.log('model sheet written');
 }

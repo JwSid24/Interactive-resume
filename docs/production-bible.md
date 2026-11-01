@@ -1,4 +1,4 @@
-# Jwandini #18 — Production Bible
+# Jwan Sidou #18 — Production Bible
 
 Visual quality > technical complexity. This is a small Japanese football-anime production, not a browser game.
 
@@ -16,10 +16,11 @@ Nothing past step 2 starts before the model sheet is approved.
 - Shading: hard two-tone cel shading with a cool multiply shadow on fabric, warm shadow on skin, highlight band on hair,
   layered anime eyes. Key light from the upper right in every shot.
 
-## Character: Jwandini #18
-- Chestnut-brown spiky hair: up-swept spikes, three forelocks, signature forward-leaning crown spike. No headband.
+## Character: Jwan Sidou #18
+- Deep espresso-brown flow middle-part hair, thin groomed moustache. No headband.
+- Position: CDM (Central Defensive Midfielder). Special move: Tiger Shot.
 - Large warm-brown eyes with amber lower iris, sharp outer lash corner, determined brows.
-- Kit: Blaugrana striped shirt (garnet/blue), no crest, no sponsors. Gold `JWANDINI` + `18` on the back.
+- Kit: Blaugrana striped shirt (garnet/blue), no crest, no sponsors. Gold `JWAN SIDOU` + `18` on the back.
   Black boots with gold details. Navy shorts, blue long socks with garnet band (default, pending approval).
 
 ## Timing

@@ -1,4 +1,4 @@
-// Jwandini full body, four views. Same HU space as head.mjs: skull top y = 0, soles y = 650 (6.5 heads).
+// Jwan Sidou full body, four views. Same HU space as head.mjs: skull top y = 0, soles y = 650 (6.5 heads).
 import { C, W, P, F, L, SH, mirror, move, xf, uid, widen } from './kit.mjs';
 import { headFront, headQ, headSide, headBack, EXPR } from './head.mjs';
 
@@ -239,8 +239,8 @@ export function bodyBack() {
   s += tb(fold('M -58,268 Q -42,277 -26,272 M 30,281 Q 44,277 58,270 M -40,140 Q -30,150 -26,166 M 40,140 Q 30,150 26,166 M -56,200 Q -48,232 -54,262 M 56,200 Q 48,232 54,262'));
   s += tb(P('M -22,112 Q 0,120 22,112 L 23,117 Q 0,126 -23,117 Z', C.GAR, W.IN));
   // gold name + number
-  s += `<path id="nameArc" d="M -52,170 Q 0,150 52,170" fill="none"/>`;
-  s += `<text font-family="${KIT_FONT}" font-size="25" letter-spacing="2" fill="url(#goldG)" stroke="${C.INK}" stroke-width="1.2" paint-order="stroke" text-anchor="middle"><textPath href="#nameArc" startOffset="50%">JWANDINI</textPath></text>`;
+  s += `<path id="nameArc" d="M -64,172 Q 0,150 64,172" fill="none"/>`;
+  s += `<text font-family="${KIT_FONT}" font-size="20" letter-spacing="1" fill="url(#goldG)" stroke="${C.INK}" stroke-width="1.2" paint-order="stroke" text-anchor="middle"><textPath href="#nameArc" startOffset="50%">JWAN SIDOU</textPath></text>`;
   s += `<text x="0" y="262" font-family="${KIT_FONT}" font-size="104" fill="url(#goldG)" stroke="${C.INK}" stroke-width="2.4" paint-order="stroke" text-anchor="middle">18</text>`;
   s += L('M 30,186 L 26,262', 1, '#2E1838', .25);
   s += P(ARM, C.SKIN, W.OUT) + F(ARM_OUT, C.SKIN_SH) + P(mirror(ARM), C.SKIN, W.OUT) + F(mirror(ARM_IN), C.SKIN_SH);

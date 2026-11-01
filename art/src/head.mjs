@@ -1,4 +1,4 @@
-// Jwandini head in four views + expressions. Local space: HU = 100, x = 0 centre line, y = 0 top of skull, chin ≈ 101.
+// Jwan Sidou head in four views + expressions. Local space: HU = 100, x = 0 centre line, y = 0 top of skull, chin ≈ 101.
 import { C, W, P, F, L, E, xf, mirror, spikes, uid, lock, spikeShade } from './kit.mjs';
 
 /* ---------- anime eye (authored once, mirrored / foreshortened per view) ---------- */

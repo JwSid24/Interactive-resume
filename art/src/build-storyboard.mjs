@@ -8,7 +8,7 @@ const frames = [
   ['01-establishing', 'Establishing shot', 'Wide lens, sun behind the far stand'],
   ['02-ball-in-sky', 'Ball high in the sky', 'Camera tilts up, ball catches the sun'],
   ['03-ball-falling', 'Ball falling', 'Motion trail, shadow forming on the pitch'],
-  ['04-jwandini-enters', 'Jwandini enters', 'Sprint in from the left, dust kick-up'],
+  ['04-player-enters', 'Jwan Sidou enters', 'Sprint in from the left, dust kick-up'],
   ['05-run-to-ball', 'Run to the ball', 'Medium shot, eyes on the dropping ball'],
   ['06-first-touch', 'First touch', 'Cushioned on the instep, arms for balance'],
   ['07-control-closeup', 'Control close-up', 'Ball kills dead on the boot, focus lines'],
