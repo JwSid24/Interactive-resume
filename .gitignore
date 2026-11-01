@@ -1,0 +1,7 @@
+node_modules/
+.next/
+out/
+*.log
+.DS_Store
+art/model-sheet/*.png
+!art/model-sheet/jwandini-model-sheet.png

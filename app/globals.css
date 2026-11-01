@@ -1,0 +1,5 @@
+:root { --ink: #241418; --paper: #F7F3EA; --garnet: #A3123F; --blue: #0B4EA2; --navy: #0E2A52; --gold: #E9B83A; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--navy); color: #fff; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
+body { overflow: hidden; }
+:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }

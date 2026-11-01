@@ -1,0 +1,145 @@
+{
+ "stage": [
+  1920,
+  1080
+ ],
+ "shots": {
+  "run": {
+   "hip": [
+    820,
+    611
+   ],
+   "ball": {
+    "from": [
+     1480,
+     -140
+    ],
+    "to": [
+     1480,
+     150
+    ],
+    "r": 50
+   }
+  },
+  "touch": {
+   "hip": [
+    800,
+    714.5
+   ],
+   "ball": {
+    "at": [
+     947,
+     769.1
+    ],
+    "r": 42
+   },
+   "ground": 1040
+  },
+  "close": {
+   "ball": {
+    "at": [
+     1000,
+     470
+    ],
+    "r": 124
+   }
+  },
+  "step": {
+   "ball": {
+    "at": [
+     820,
+     700
+    ],
+    "r": 92
+   },
+   "ground": 789.3192522422273
+  },
+  "hero": {
+   "ball": {
+    "at": [
+     860.4,
+     1007.2
+    ],
+    "r": 52.800000000000004
+   },
+   "face": [
+    910,
+    318.16
+   ]
+  }
+ },
+ "ball": {
+  "box": 256,
+  "r": 120
+ },
+ "run": {
+  "box": 900,
+  "hip": [
+   450,
+   450
+  ],
+  "ground": [
+   262.8,
+   289.9,
+   288.2,
+   262.8,
+   289.9,
+   288.2
+  ]
+ },
+ "goal": {
+  "front": {
+   "l": 420,
+   "r": 1500,
+   "top": 250,
+   "gnd": 880
+  },
+  "back": {
+   "l": 540,
+   "r": 1380,
+   "top": 340,
+   "gnd": 800
+  },
+  "corner": [
+   1360,
+   360
+  ]
+ },
+ "files": {
+  "wide-sky": "wide-sky.svg",
+  "wide-clouds": "wide-clouds.svg",
+  "wide-stadium": "wide-stadium.svg",
+  "wide-pitch": "wide-pitch.svg",
+  "sky-up": "sky-up.svg",
+  "mid-sky": "mid-sky.svg",
+  "mid-ground": "mid-ground.svg",
+  "close-grass-blur": "close-grass-blur.svg",
+  "close-grass": "close-grass.svg",
+  "low-sky": "low-sky.svg",
+  "low-ground": "low-ground.svg",
+  "low-flare": "low-flare.svg",
+  "ball-pattern": "ball-pattern.svg",
+  "ball-shade": "ball-shade.svg",
+  "ball-shade-tl": "ball-shade-tl.svg",
+  "fx-focus": "fx-focus.svg",
+  "fx-speed": "fx-speed.svg",
+  "fx-speed-down": "fx-speed-down.svg",
+  "run-0": "run-0.svg",
+  "run-1": "run-1.svg",
+  "run-2": "run-2.svg",
+  "run-3": "run-3.svg",
+  "run-4": "run-4.svg",
+  "run-5": "run-5.svg",
+  "cel-run": "cel-run.svg",
+  "cel-touch": "cel-touch.svg",
+  "cel-close": "cel-close.svg",
+  "cel-step": "cel-step.svg",
+  "cel-step-shadow": "cel-step-shadow.svg",
+  "cel-hero": "cel-hero.svg",
+  "cel-hero-shadow": "cel-hero-shadow.svg",
+  "face-shout": "face-shout.svg",
+  "face-focus": "face-focus.svg",
+  "goal-net": "goal-net.svg",
+  "goal-frame": "goal-frame.svg"
+ }
+}
