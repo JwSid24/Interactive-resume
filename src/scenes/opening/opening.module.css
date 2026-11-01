@@ -44,12 +44,12 @@
   box-shadow: 0 0 0 14px #241418; }
 .cutPanel::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(115deg, rgba(255,255,255,.18) 0 6px, transparent 6px 40px); mix-blend-mode: soft-light; }
 .cutFace { position: absolute; left: 50%; top: 50%; width: 660px; transform: translate(-50%, -34%); filter: drop-shadow(0 18px 0 rgba(36,20,24,.35)); }
-.moveName { position: absolute; left: 50%; bottom: 120px; display: grid; justify-items: center; text-align: center; white-space: nowrap; gap: 6px; text-shadow: 0 4px 0 #241418; }
+.moveName { position: absolute; left: 50%; bottom: 90px; width: 600px; display: grid; justify-items: center; text-align: center; gap: 6px; text-shadow: 0 4px 0 #241418; }
 .moveName small { font: 700 26px/1 system-ui, sans-serif; letter-spacing: .3em; color: #FFE69A; }
 .moveName strong { font: 400 104px/0.9 Impact, 'Arial Narrow Bold', sans-serif; letter-spacing: .03em; color: #fff; -webkit-text-stroke: 4px #241418; paint-order: stroke fill; }
-.goalCall { position: absolute; left: 50%; top: 560px; display: grid; justify-items: center; transform: translateX(-50%); opacity: 0; text-align: center; pointer-events: none; }
-.goalCall span { font: 900 120px/1 'Yu Gothic', 'Meiryo', sans-serif; color: #fff; -webkit-text-stroke: 8px #A3123F; paint-order: stroke fill; text-shadow: 0 10px 0 #241418; }
-.goalCall strong { font: 400 210px/.85 Impact, 'Arial Narrow Bold', sans-serif; color: #E9B83A; -webkit-text-stroke: 8px #241418; paint-order: stroke fill; letter-spacing: .04em; }
+.goalCall { position: absolute; left: 50%; top: 46%; display: grid; justify-items: center; transform: translate(-50%, -50%); opacity: 0; text-align: center; pointer-events: none; white-space: nowrap; }
+.goalCall span { font: 900 clamp(44px, 8vw, 110px)/1 'Yu Gothic', 'Meiryo', sans-serif; color: #fff; -webkit-text-stroke: clamp(4px, .6vw, 8px) #A3123F; paint-order: stroke fill; text-shadow: 0 6px 0 #241418; }
+.goalCall strong { font: 400 clamp(84px, 15vw, 200px)/.85 Impact, 'Arial Narrow Bold', sans-serif; color: #E9B83A; -webkit-text-stroke: clamp(4px, .6vw, 8px) #241418; paint-order: stroke fill; letter-spacing: .04em; }
 .srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 .end::before { content: ""; position: absolute; left: -16px; right: -16px; top: -40px; bottom: -60px; z-index: -1; background: linear-gradient(180deg, rgba(8,20,50,0), rgba(8,20,50,.72) 45%, rgba(8,20,50,.82)); }

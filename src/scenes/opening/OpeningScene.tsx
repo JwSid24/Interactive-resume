@@ -15,6 +15,8 @@ type Phase = 'loading' | 'ready' | 'playing' | 'hero' | 'goal' | 'portfolio';
 const LIVE: Record<Phase, string> = { loading: 'Loading the episode', ready: 'Title screen. Press Kick off to start.', playing: 'Opening scene playing: a ball falls from the sky and Jwandini controls it.', hero: 'Jwandini stands with his foot on the ball. Press Meet Jwandini to continue.', goal: 'Jwandini dribbles toward goal and scores in the top corner.', portfolio: 'Portfolio. Use the section tabs to explore.' };
 
 const PRELOAD = Object.keys(manifest.files);
+const OPEN_CUTS: [string, number][] = [['s2', 0], ['s3', 1.4], ['s4', 3.1], ['s5', 4.25], ['s6', 5.45], ['s7', 6.5], ['s8', 7.7]];
+const GOAL_CUTS: [string, number][] = [['g1', 0], ['g2', 1.7], ['g3', 2.9], ['g4', 3.9], ['g5', 4.5]];
 const FOCUS: Record<string, [number, number]> = { s1: [960, 540], s2: [1180, 420], s3: [820, 700], s4: [980, 560], s5: [900, 640], s6: [1000, 500], s7: [820, 640], s8: [900, 540], g1: [960, 760], g2: [1000, 640], g3: [960, 500], g4: [1000, 480], g5: [1300, 420] };
 
 function Ball({ id, x, y, r, light = 'tr' }: { id: string; x: number; y: number; r: number; light?: 'tr' | 'tl' }) {
@@ -59,7 +61,7 @@ export default function OpeningScene() {
   }, []);
 
   useEffect(() => {
-    setReduced(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    setReduced(window.matchMedia('(prefers-reduced-motion: reduce)').matches || new URLSearchParams(location.search).get('motion') === 'reduce');
     let n = 0;
     PRELOAD.forEach((k) => {
       const im = new Image();
@@ -75,11 +77,31 @@ export default function OpeningScene() {
   const one = (sel: string) => stage.current!.querySelector(sel) as HTMLElement;
 
   /* ---------- the master timeline ---------- */
+  /* framing: which shot is on screen at time t, and where its subject is (followed every frame) */
+  const frame = useCallback((T: gsap.core.Timeline, cuts: [string, number][]) => {
+    const t = T.time();
+    let shot = cuts[0][0];
+    for (const [id, at] of cuts) if (t >= at) shot = id;
+    let [x, y] = FOCUS[shot];
+    const st = stage.current;
+    if (st && (shot === 's3' || shot === 'g1')) {
+      const cam = st.querySelector(`[data-shot="${shot}"] [data-cam]`) as HTMLElement;
+      const who = st.querySelector(shot === 's3' ? '[data-k="runner"]' : '[data-k="drib"]') as HTMLElement;
+      const cs = Number(gsap.getProperty(cam, 'scale')) || 1, cx = Number(gsap.getProperty(cam, 'x')) || 0, rx = Number(gsap.getProperty(who, 'x')) || 0;
+      if (shot === 's3') {           // ball first, then hand over to the runner once he is on the pitch
+        const runner = 960 + (rx - 960) * cs, k = Math.min(1, Math.max(0, (t - 1.9) / .5));
+        x = 930 + (runner + 140 - 930) * k;
+      } else x = cx + rx * cs + 70;    // camera origin is the left edge in G1
+    }
+    focus.current = { x, y };
+    layout();
+  }, [layout]);
+
   const tools = useCallback((T: gsap.core.Timeline) => {
     const $ = one;
     const show = (shot: string, at: number) => {
       T.set('[data-shot]', { autoAlpha: 0 }, at).set(`[data-shot="${shot}"]`, { autoAlpha: 1 }, at)
-        .set(focus.current, { x: FOCUS[shot][0], y: FOCUS[shot][1], onComplete: layout }, at).call(layout, [], at);
+
     };
     const flash = (at: number, a = .9, d = .14) => T.fromTo($('[data-flash]'), { opacity: a }, { opacity: 0, duration: d, ease: 'none', immediateRender: false }, at);
     const shake = (target: string, at: number, amp = 14, d = .3) => {
@@ -93,15 +115,12 @@ export default function OpeningScene() {
       const n = Math.floor(d * fps);
       for (let i = 0; i < n; i++) T.set(target, frames(i), at + i / fps);
     };
-    // framing follows the action on narrow screens (no effect when the whole stage is visible)
-    const track = (x0: number, x1: number, y: number, at: number, d: number) =>
-      T.fromTo(focus.current, { x: x0, y }, { x: x1, y, duration: d, ease: 'none', onUpdate: layout, immediateRender: false }, at);
-    return { $, show, flash, shake, spin, stepped, track };
+    return { $, show, flash, shake, spin, stepped };
   }, [layout]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const build = useCallback(() => {
-    const T = gsap.timeline({ paused: true, onComplete: () => setPhase('hero') });
-    const { $, show, flash, shake, spin, stepped, track } = tools(T);
+    const T = gsap.timeline({ paused: true, onComplete: () => setPhase('hero'), onUpdate: () => frame(T, OPEN_CUTS) });
+    const { $, show, flash, shake, spin, stepped } = tools(T);
 
     /* S2 — ball high in the sky (camera tilting up) */
     show('s2', 0);
@@ -120,7 +139,6 @@ export default function OpeningScene() {
     spin('s3', 1.4, 1.7, 2);
     T.fromTo('[data-k="bshadow3"]', { scale: .3, opacity: .1 }, { scale: 1, opacity: .35, duration: 1.7, ease: 'power1.in' }, 1.4);
     T.fromTo('[data-k="runner"]', { x: -360 }, { x: 760, duration: 1.6, ease: 'none' }, 1.5);
-    track(930, 930, 640, 1.4, .5); track(930, 760, 660, 1.9, 1.2);
     stepped('[data-k="runner"] img', 1.5, 1.6, 10, (i) => ({ opacity: ((idx: number) => (idx === i % 6 ? 1 : 0)) as unknown as number }));
     T.fromTo('[data-k="runner-streak"]', { opacity: 0 }, { opacity: .7, duration: .3 }, 1.6);
 
@@ -179,8 +197,8 @@ export default function OpeningScene() {
 
   /* ---------- the football action: dribble, special move, strike, top corner, into the portfolio ---------- */
   const buildGoal = useCallback(() => {
-    const T = gsap.timeline({ paused: true, onComplete: () => setPhase('portfolio') });
-    const { $, show, flash, shake, spin, stepped, track } = tools(T);
+    const T = gsap.timeline({ paused: true, onComplete: () => setPhase('portfolio'), onUpdate: () => frame(T, GOAL_CUTS) });
+    const { $, show, flash, shake, spin, stepped } = tools(T);
     const G = manifest.goal;
 
     /* G1 — wide: he takes off with the ball, camera tracks him toward goal */
@@ -188,7 +206,6 @@ export default function OpeningScene() {
     T.fromTo('[data-shot="g1"] [data-cam]', { scale: 1.12, x: 0, transformOrigin: '0% 70%' }, { x: -230, duration: 1.7, ease: 'none' }, 0);
     T.fromTo('[data-k="gclouds"]', { x: 0 }, { x: 60, duration: 1.7, ease: 'none' }, 0);
     T.fromTo('[data-k="drib"]', { x: 160 }, { x: 1620, duration: 1.7, ease: 'power1.in' }, 0);
-    track(320, 1500, 820, 0, 1.7);
     stepped('[data-k="drib"] img', 0, 1.7, 12, (i) => ({ opacity: ((idx: number) => (idx === i % 6 ? 1 : 0)) as unknown as number }));
     T.set('[data-ball="g1"]', { xPercent: -50, yPercent: -50 }, 0);
     for (let i = 0; i < 5; i++) T.to('[data-ball="g1"]', { y: -16, duration: .17, yoyo: true, repeat: 1, ease: 'sine.out' }, i * .34);
@@ -239,7 +256,7 @@ export default function OpeningScene() {
     T.to('[data-k="gnet5"]', { keyframes: [{ skewX: 2, duration: .1 }, { skewX: -1.5, duration: .12 }, { skewX: .6, duration: .14 }, { skewX: 0, duration: .16 }] }, goal + .24);
     T.to('[data-ball="g5"]', { y: 40, x: -30, duration: .5, ease: 'bounce.out' }, goal + .05);
     T.fromTo('[data-k="gfocus5"]', { opacity: 0, scale: 1.3 }, { opacity: 1, scale: 1, duration: .25 }, goal);
-    T.fromTo('[data-k="gcall5"]', { xPercent: -50, scale: 2.4, opacity: 0, rotation: -8 }, { xPercent: -50, scale: 1, opacity: 1, rotation: -4, duration: .3, ease: 'back.out(2.2)' }, goal + .08);
+    T.fromTo('[data-k="gcall5"]', { xPercent: -50, yPercent: -50, scale: 2.4, opacity: 0, rotation: -8 }, { xPercent: -50, yPercent: -50, scale: 1, opacity: 1, rotation: -4, duration: .3, ease: 'back.out(2.2)' }, goal + .08);
     /* push into the net -> portfolio */
     T.to('[data-shot="g5"] [data-cam]', { scale: 7, duration: .9, ease: 'power3.in', transformOrigin: `${ox}% ${oy}%` }, 6.3);
     T.to('[data-k="gcall5"]', { opacity: 0, duration: .3 }, 6.3);
@@ -256,7 +273,7 @@ export default function OpeningScene() {
     layout();
     gsap.set('[data-shot]', { autoAlpha: 0 });
     gsap.set('[data-shot="s1"]', { autoAlpha: 1 });
-    idle.current = gsap.timeline({ repeat: -1, yoyo: true })
+    idle.current = gsap.timeline({ repeat: -1, yoyo: true, paused: reduced })   // title shot stays still with reduced motion
       .to('[data-k="wclouds1"]', { x: -60, duration: 9, ease: 'sine.inOut' }, 0)
       .to('[data-shot="s1"] [data-cam]', { scale: 1.03, duration: 9, ease: 'sine.inOut', transformOrigin: '50% 60%' }, 0);
     tl.current = build();
@@ -265,16 +282,17 @@ export default function OpeningScene() {
     if (qs.get('view') === 'portfolio') { idle.current.kill(); setPhase('portfolio'); return; }
     if (seek !== null) {
       idle.current.kill();
-      if (seek.startsWith('g')) { gl.current = buildGoal(); setPhase('goal'); gl.current.seek(parseFloat(seek.slice(1))).pause(); }
-      else { setPhase('playing'); tl.current.seek(parseFloat(seek)).pause(); }
+      if (seek.startsWith('g')) { gl.current = buildGoal(); setPhase('goal'); gl.current.seek(parseFloat(seek.slice(1))).pause(); frame(gl.current, GOAL_CUTS); }
+      else { setPhase('playing'); tl.current.seek(parseFloat(seek)).pause(); frame(tl.current, OPEN_CUTS); }
     }
-  }, [phase, build, buildGoal, layout]);
+  }, [phase, build, buildGoal, layout, reduced, frame]);
 
   const start = () => {
     idle.current?.kill();
-    if (reduced) { // no motion: go straight to the final composition
-      gsap.set('[data-shot]', { autoAlpha: 0 }); gsap.set('[data-shot="s8"]', { autoAlpha: 1 });
-      focus.current = { x: FOCUS.s8[0], y: FOCUS.s8[1] }; layout(); setPhase('hero'); return;
+    if (reduced && tl.current) { // no motion: jump straight to the opening's final composition
+      tl.current.progress(1, true).pause();
+      frame(tl.current, OPEN_CUTS);
+      setPhase('hero'); return;
     }
     setPhase('playing');
     tl.current?.play(0);
@@ -287,12 +305,8 @@ export default function OpeningScene() {
     setPhase('goal');
     gl.current.play(0);
   };
-  // skipping a scene jumps to the next interactive beat (never out of the experience)
-  const skip = () => {
-    if (phase === 'playing') { tl.current?.progress(1); setPhase('hero'); }
-    else if (phase === 'goal') { gl.current?.progress(1); setPhase('portfolio'); }
-  };
   const replay = () => {
+    if (reduced && tl.current) { gsap.set('[data-flash]', { opacity: 0 }); tl.current.progress(1, true).pause(); frame(tl.current, OPEN_CUTS); setPhase('hero'); return; }
     gsap.set('[data-flash]', { opacity: 0 });
     gl.current?.kill(); gl.current = null;
     setPhase('playing');
@@ -411,10 +425,11 @@ export default function OpeningScene() {
           <Ball id="g5" x={manifest.goal.corner[0]} y={manifest.goal.corner[1]} r={30} />
           <Plate name="goal-frame" />
           <div className={css.plate} data-k="gfocus5" style={{ opacity: 0, transform: `translate(${manifest.goal.corner[0] - 960}px, ${manifest.goal.corner[1] - 540}px)` }}><Plate name="fx-focus" /></div>
-          <div className={css.goalCall} data-k="gcall5"><span>ゴール!!</span><strong>GOAL!</strong></div>
         </div></div>
         <div className={css.flash} data-flash />
       </div>
+
+      <div className={css.goalCall} data-k="gcall5" aria-hidden><span>ゴール!!</span><strong>GOAL!</strong></div>
 
       {/* UI */}
       {phase === 'loading' && (
@@ -431,7 +446,6 @@ export default function OpeningScene() {
           <button className={css.cta} onClick={start} autoFocus>Kick off</button>
         </div>
       )}
-      {(phase === 'playing' || phase === 'goal') && <button className={css.skip} onClick={skip}>Skip scene</button>}
       {phase === 'hero' && (
         <div className={css.end}>
           <p className={css.kicker}>No. 18 · Forward</p>

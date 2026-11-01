@@ -162,6 +162,7 @@ export default function Portfolio({ onReplay, reduced }: { onReplay: () => void;
         <img src={BASE + 'low-sky.svg'} alt="" /><img src={BASE + 'low-ground.svg'} alt="" />
       </div>
       <div className={css.frame}>
+        <h1 className={css.srOnly}>Jwandini #18, software engineering student: portfolio</h1>
         <header className={css.top}>
           <div className={css.brand}><strong>JWANDINI</strong><b>#18</b><span>{cv.tagline}</span></div>
           <div className={css.score} aria-label="Score: Jwandini 1, opposition 0, 90th minute">
