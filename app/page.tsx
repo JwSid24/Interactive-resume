@@ -1,10 +1,6 @@
-import Experience from '../src/scenes/opening/OpeningScene';
+import Site from '../src/site/Site';
 
-// The whole site is one interactive episode: opening -> goal -> portfolio.
+// One continuous scroll portfolio; the original anime opening is available inside it as an optional episode.
 export default function Home() {
-  return (
-    <main>
-      <Experience />
-    </main>
-  );
+  return <Site />;
 }

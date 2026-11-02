@@ -40,7 +40,10 @@ const Dust = ({ x, y, k }: { x: number; y: number; k: string }) => (
   </div>
 );
 
-export default function OpeningScene() {
+export default function OpeningScene({ embedded = false, onExit }: { embedded?: boolean; onExit?: () => void } = {}) {
+  // embedded: played from the scroll portfolio; after the goal it hands back instead of opening the old portfolio screens
+  const finish = useRef(() => setPhase('portfolio'));
+  finish.current = embedded && onExit ? onExit : () => setPhase('portfolio');
   const root = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const tl = useRef<gsap.core.Timeline | null>(null);
@@ -197,7 +200,7 @@ export default function OpeningScene() {
 
   /* ---------- the football action: dribble, special move, strike, top corner, into the portfolio ---------- */
   const buildGoal = useCallback(() => {
-    const T = gsap.timeline({ paused: true, onComplete: () => setPhase('portfolio'), onUpdate: () => frame(T, GOAL_CUTS) });
+    const T = gsap.timeline({ paused: true, onComplete: () => finish.current(), onUpdate: () => frame(T, GOAL_CUTS) });
     const { $, show, flash, shake, spin, stepped } = tools(T);
     const G = manifest.goal;
 
@@ -299,7 +302,7 @@ export default function OpeningScene() {
   };
   /* "Meet Jwan Sidou": the football action, then the portfolio */
   const meet = () => {
-    if (reduced) { setPhase('portfolio'); return; }
+    if (reduced) { finish.current(); return; }
     gl.current?.kill();
     gl.current = buildGoal();
     setPhase('goal');
