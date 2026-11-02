@@ -5,10 +5,9 @@
   --pad: clamp(16px, 4vw, 64px);
 }
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+html { scroll-padding-top: 72px; }
 html, body { margin: 0; background: var(--night); color: #fff; }
 body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
 body.lock { overflow: hidden; }
 img { max-width: 100%; }
 :focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
-@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
