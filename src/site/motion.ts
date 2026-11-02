@@ -333,8 +333,11 @@ function build(root: HTMLElement, wide: boolean) {
     return `${ox + (ext.x + ext.width * .2) * k}px ${oy + (ty - fs * .36) * k}px`;
   };
   const fTl = gsap.timeline({ defaults: { ease: 'none' }, scrollTrigger: { trigger: fo, start: 'top top', end: () => '+=' + innerHeight * 3.4, pin: $('fostage'), scrub: 1, invalidateOnRefresh: true } });
-  fTl.fromTo(mask, { scale: 1, transformOrigin: dOrigin }, { scale: 90, duration: .34, ease: 'power3.in' }, .04)
-    .to(mask, { autoAlpha: 0, duration: .01 }, .38)
+  // Chrome caps SVG text at 10,000px on screen and shrinks the glyphs beyond that, so the zoom stops just under
+  // the cap for this screen size and the garnet fades away to finish the move through the letter
+  const maxZoom = () => Math.max(4, 9000 / (+letters.getAttribute('font-size')! * Math.max(innerWidth / vbW, innerHeight / vbH)));
+  fTl.fromTo(mask, { scale: 1, transformOrigin: dOrigin }, { scale: maxZoom, duration: .34, ease: 'power3.in' }, .04)
+    .fromTo(mask, { autoAlpha: 1 }, { autoAlpha: 0, duration: .12, ease: 'power1.in' }, .26)
     .to($('fointro'), { opacity: 0, y: -50, duration: .08 }, .02)
     .fromTo($('fobg'), { scale: 1.4 }, { scale: 1.05, duration: .42 }, 0)
     .fromTo($('foscrim'), { opacity: 0 }, { opacity: .74, duration: .08 }, .36)
