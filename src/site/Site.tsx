@@ -1,11 +1,11 @@
 'use client';
-// Motion-led portfolio: one continuous camera move through seven pinned scenes. Every scene ends in the colour and
+// Motion-led portfolio: one continuous camera move through six pinned scenes. Every scene ends in the colour and
 // framing the next one starts with, so the page reads as a single shot. The DOM below is the readable, static
 // layout (used for reduced motion); motion.ts layers the scroll choreography on top when motion is allowed.
 import { useEffect, useRef, useState, lazy, Suspense, type ReactNode } from 'react';
 import { cv, Entry } from '../content/cv';
 import manifest from '../../public/assets/opening/manifest.json';
-import { setupMotion, scrollToScene, FORMATION } from './motion';
+import { setupMotion, scrollToScene, SQUAD_LINKS } from './motion';
 import s from './site.module.css';
 
 const OpeningScene = lazy(() => import('../scenes/opening/OpeningScene'));
@@ -15,24 +15,12 @@ const img = (n: string) => A + n + '.svg';
 export const NAV = [
   { id: 'about', no: '02', label: 'About' },
   { id: 'skills', no: '03', label: 'Skills' },
-  { id: 'projects', no: '04', label: 'Projects' },
-  { id: 'career', no: '05', label: 'Career' },
-  { id: 'football', no: '06', label: 'Football' },
-  { id: 'contact', no: '07', label: 'Contact' },
+  { id: 'career', no: '04', label: 'Career' },
+  { id: 'why', no: '05', label: 'Why Jwan' },
+  { id: 'contact', no: '06', label: 'Contact' },
 ];
-const PILLARS = [
-  { no: '01', title: 'Control the game', text: 'Set the rhythm and keep the team in shape.' },
-  { no: '02', title: 'Defensive stability', text: 'Screen the back line and close the spaces.' },
-  { no: '03', title: 'Win it, then dictate', text: 'Win possession and set the tempo from midfield.' },
-];
-// The three chapters restate what the project text already says: character, layered environments, GSAP timeline.
-const CHAPTERS = [
-  { no: '01', title: 'An original character', text: 'Designed from a locked model sheet and drawn as layered SVG cels.' },
-  { no: '02', title: 'Layered stadium environments', text: 'Sky, stands and pitch are separate layers, so the camera can move through them.' },
-  { no: '03', title: 'A GSAP-driven timeline', text: 'Every shot, cut and run-cycle frame is sequenced on one GSAP timeline.' },
-];
-
-/* career entries in the order they started, oldest first: the season unfolds left to right */
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH || '';
+/* career entries newest first: the timeline travels back through the seasons */
 const MONTH: Record<string, number> = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
 const startOf = (when: string) => { const [m, y] = when.split('–')[0].trim().split(' '); return +y * 12 + (MONTH[m] ?? 0); };
 type Season = Entry & { kind: string };
@@ -40,7 +28,7 @@ const SEASONS: Season[] = [
   ...cv.experience.map((e) => ({ ...e, kind: 'Work' })),
   ...cv.volunteering.map((e) => ({ ...e, kind: 'Volunteering' })),
   ...cv.education.map((e) => ({ ...e, kind: 'Education' })),
-].sort((a, b) => startOf(a.when) - startOf(b.when));
+].sort((a, b) => startOf(b.when) - startOf(a.when));
 
 /* a 16:9 plate that covers its box like object-fit: cover, so layers can be placed in 1920x1080 coordinates */
 function Cover({ children, k, className = '' }: { children: ReactNode; k?: string; className?: string }) {
@@ -52,23 +40,11 @@ function Lay({ k, depth = 0, children, className = '' }: { k?: string; depth?: n
 function Img({ n, eager, className }: { n: string; eager?: boolean; className?: string }) {
   return <img className={className} src={img(n)} alt="" loading={eager ? 'eager' : 'lazy'} decoding="async" draggable={false} />;
 }
-function Ball({ x, y, r, light = 'tr', k }: { x: number; y: number; r: number; light?: 'tr' | 'tl'; k?: string }) {
+function Ball({ x, y, r, light = 'tr', k, spin }: { x: number; y: number; r: number; light?: 'tr' | 'tl'; k?: string; spin?: string }) {
   const size = (manifest.ball.box * r) / manifest.ball.r;
   return (
     <div className={s.ball} data-k={k} style={{ left: `${(x / 1920) * 100}%`, top: `${(y / 1080) * 100}%`, width: `${(size / 1920) * 100}%` }}>
-      <Img n="ball-pattern" eager /><Img n={light === 'tl' ? 'ball-shade-tl' : 'ball-shade'} eager />
-    </div>
-  );
-}
-/* the run cycle: six frames stacked on the same hip point, shown one at a time */
-function Runner({ x, ground, scale, k }: { x: number; ground: number; scale: number; k: string }) {
-  const b = manifest.run.box, hip = manifest.run.hip;
-  return (
-    <div className={s.runner} data-k={k}>
-      {manifest.run.ground.map((g, i) => (
-        <img key={i} src={img(`run-${i}`)} alt="" loading="lazy" decoding="async" data-frame={i}
-          style={{ left: `${((x - hip[0] * scale) / 1920) * 100}%`, top: `${((ground - (hip[1] + g) * scale) / 1080) * 100}%`, width: `${((b * scale) / 1920) * 100}%`, opacity: i ? 0 : 1 }} />
-      ))}
+      <img src={img('ball-pattern')} alt="" draggable={false} data-k={spin} /><Img n={light === 'tl' ? 'ball-shade-tl' : 'ball-shade'} eager />
     </div>
   );
 }
@@ -188,12 +164,21 @@ export default function Site() {
                 <Cover k="front">
                   <Lay k="fig" depth={1}>
                     <Img n="cel-hero-shadow" eager />
-                    <Ball x={hero.ball.at[0]} y={hero.ball.at[1]} r={hero.ball.r} light="tl" />
+                    <i className={s.ballShadow} data-k="bshadow" style={{ left: `${(hero.ball.at[0] / 1920) * 100}%`, top: `${((hero.ball.at[1] + hero.ball.r * .9) / 1080) * 100}%` }} />
+                    {/* the ball at rest sits behind his boot; the falling one is drawn in front of him */}
+                    <Ball x={hero.ball.at[0]} y={hero.ball.at[1]} r={hero.ball.r} light="tl" k="rball" />
                     <Img n="cel-hero" eager />
+                    <div className={s.drop} data-k="drop"><Ball x={hero.ball.at[0]} y={hero.ball.at[1]} r={hero.ball.r} light="tl" spin="spin" /></div>
                   </Lay>
                   <Lay k="flare" depth={1.4}><Img n="low-flare" eager className={s.flare} /></Lay>
                 </Cover>
                 <div className={s.kShade} data-k="shade" aria-hidden />
+                {/* the profile card's photo: set cv.photo to show your picture; until then a clean empty slot */}
+                <div className={s.kPhoto} data-k="photo">
+                  <div className={s.kPhotoIn} data-k="photoin">
+                    {cv.photo ? <img src={`${BASE}/${cv.photo}`} alt="Jwan Sidou" /> : null}
+                  </div>
+                </div>
               </div>
             </div>
             <span className={s.sr}>Jwan Sidou drawn as an anime footballer in a blaugrana number 18 kit, foot on the ball.</span>
@@ -245,99 +230,45 @@ export default function Site() {
                 <path data-draw d="M 616.5 340 A 91.5 91.5 0 1 1 433.5 340 A 91.5 91.5 0 1 1 616.5 340" />
               </svg>
             </div>
-            <p className={s.skMarquee} data-k="marquee" aria-hidden>The squad · The squad · The squad · The squad ·</p>
+            <p className={s.skMarquee} data-k="marquee" aria-hidden>Tech-stack · 4-2-3-1 · Tech-stack · 4-2-3-1 ·</p>
             <header className={s.skHead}>
               <Label no="03">Skills &amp; technologies · <span lang="ja">能力</span></Label>
               <h2 id="skills-title" className={s.h2} data-split>The squad <em>I play with.</em></h2>
             </header>
             <div className={s.skField} data-k="field">
               <svg className={s.skNet} data-k="net" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden>
-                {FORMATION.links.map(([a, b], i) => <line key={i} data-link={`${a}-${b}`} vectorEffect="non-scaling-stroke" />)}
+                {SQUAD_LINKS.map(([a, b], i) => <line key={i} data-link={`${a}-${b}`} />)}
               </svg>
-              {cv.skills.map((g, gi) => (
-                <div key={g.group} className={`${s.skGroup} ${gi ? s.skGroupB : ''}`} data-group={gi}>
-                  <h3 className={s.skCap} data-k={`cap${gi}`}><b>{g.group}</b><span>{String(g.items.length).padStart(2, '0')} players</span></h3>
-                  <ul className={s.skList}>
-                    {g.items.map((t, i) => (
-                      <li key={t} className={`${s.tok} ${gi ? s.tokB : ''}`} data-tok={gi * cv.skills[0].items.length + i}>
-                        <span className={s.tokIn} data-tok-in><b>{String(i + 1).padStart(2, '0')}</b><span>{t}</span></span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
+              <div className={s.skGroup}>
+                <h3 className={s.skCap} data-k="cap0"><b>{cv.squad.name}</b><span>{cv.squad.formation} · {cv.squad.players.length} players</span></h3>
+                <ul className={s.skList} aria-label={`${cv.squad.name}, ${cv.squad.formation} formation`}>
+                  {cv.squad.players.map((p, i) => (
+                    <li key={p.name} className={s.tok} data-tok={i} data-line={i === 0 ? 0 : i < 5 ? 1 : i < 7 ? 2 : 3}>
+                      <span className={s.tokIn} data-tok-in><b>{p.pos}</b><span>{p.name}</span></span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className={s.skGroup}>
+                <h3 className={s.skStaffCap} data-k="cap1"><b>Coaching staff</b><span>{cv.squad.staffNote}</span></h3>
+                <ul className={s.skList} aria-label="Coaching staff">
+                  {cv.squad.staff.map((c, i) => (
+                    <li key={c.name} className={`${s.tok} ${s.tokCoach}`} data-staff={i}>
+                      <span className={s.tokIn} data-tok-in><b>{c.role}</b><span>{c.name}</span></span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
             <div className={s.skWipe} data-k="skwipe" aria-hidden />
           </div>
         </section>
 
-        {/* ============ 04 projects: the highlight reel opens into a case study ============ */}
-        <section className={s.pr} id="projects" data-scene="Projects" aria-labelledby="projects-title">
-          <div className={s.prStage} data-k="prstage">
-            <div className={s.prTop} data-k="prtop">
-              <Label no="04">Featured project · <span lang="ja">ハイライト</span></Label>
-            </div>
-            <h2 id="projects-title" className={s.prTitle}>
-              <span data-k="w1">Highlight</span> <span data-k="w2"><em>reel.</em></span>
-            </h2>
-            <div className={s.prTilt} data-k="prtilt">
-              <div className={s.prCard} data-k="card" data-cursor-text="Scroll">
-                <div className={s.prScene} data-ch="0">
-                  <Cover>
-                    <Lay k="pr-sky"><Img n="mid-sky" /></Lay>
-                    <Lay k="pr-ground"><Img n="mid-ground" /></Lay>
-                    <Lay k="pr-speed"><Img n="fx-speed" /></Lay>
-                    <Runner x={900} ground={980} scale={.82} k="pr-run" />
-                  </Cover>
-                </div>
-                <div className={`${s.prScene} ${s.prFace}`} data-ch="1">
-                  <div className={s.prStripes} data-k="stripes" aria-hidden />
-                  <img className={s.prFaceImg} data-k="face" src={img('face-focus')} alt="" loading="lazy" decoding="async" />
-                  <ul className={s.prNotes} aria-hidden>
-                    <li data-note>Espresso-brown flow middle part</li>
-                    <li data-note>Blaugrana No. 18 kit</li>
-                    <li data-note>Layered SVG cels</li>
-                  </ul>
-                </div>
-                <div className={`${s.prScene} ${s.prLayers}`} data-ch="2">
-                  <div className={s.prStack} data-k="stack">
-                    {['wide-sky', 'wide-clouds', 'wide-stadium', 'wide-pitch'].map((n, i) => (
-                      <div key={n} className={s.prSheet} data-sheet={i}><Img n={n} /><span>{['Sky', 'Clouds', 'Stands', 'Pitch'][i]}</span></div>
-                    ))}
-                  </div>
-                </div>
-                <div className={`${s.prScene} ${s.prStrip}`} data-ch="3">
-                  <div className={s.prRuler} aria-hidden>{Array.from({ length: 13 }, (_, i) => <i key={i}>{(i * .25).toFixed(2)}s</i>)}</div>
-                  <div className={s.prFrames} data-k="frames">
-                    {[0, 1, 2, 3, 4, 5].map((i) => <figure key={i} data-cell={i}><Img n={`run-${i}`} /><figcaption>run-{i}</figcaption></figure>)}
-                  </div>
-                  <i className={s.prHead} data-k="playhead" aria-hidden />
-                </div>
-                <div className={s.prShade} aria-hidden />
-              </div>
-            </div>
-            {cv.projects.map((p) => (
-              <article key={p.title} className={s.prCase} data-k="case" data-at=".26">
-                <p className={s.prTag}>Case study 01 · {p.tag}</p>
-                <h3 className={s.prName} data-k="prname">{p.title}</h3>
-                <p className={s.prText} data-k="prtext">{p.text}</p>
-                <div data-k="prcta"><a className={s.btn} href={p.link} target="_blank" rel="noreferrer" data-magnetic>View the code on GitHub <span aria-hidden>→</span></a></div>
-              </article>
-            ))}
-            <ol className={s.prChapters}>
-              {CHAPTERS.map((c, i) => (
-                <li key={c.no} data-chap={i} data-at={[.47, .65, .86][i]}><span>{c.no} / 03</span><b>{c.title}</b><p>{c.text}</p></li>
-              ))}
-            </ol>
-            <p className={s.prMore} data-k="more">More case studies are on their way.</p>
-          </div>
-        </section>
-
-        {/* ============ 05 career: season by season, left to right ============ */}
+        {/* ============ 04 career: season by season, travelling back from today ============ */}
         <section className={s.ca} id="career" data-scene="Career" aria-labelledby="career-title">
           <div className={s.caStage} data-k="castage">
             <header className={s.caHead}>
-              <Label no="05">Experience &amp; education · <span lang="ja">経歴</span></Label>
+              <Label no="04">Experience &amp; education · <span lang="ja">経歴</span></Label>
               <h2 id="career-title" className={s.h2} data-split>Season <em>by season.</em></h2>
             </header>
             <p className={s.caYear} data-k="year" aria-hidden>{SEASONS[0].when.split('–')[0].trim().split(' ')[1]}</p>
@@ -355,13 +286,13 @@ export default function Site() {
                   </div>
                 </li>
               ))}
-              <li className={s.caEnd} data-k="caend" aria-hidden><span>Next</span>06 · Football</li>
+              <li className={s.caEnd} data-k="caend" aria-hidden><span>Next</span>05 · Why Jwan Sidou?</li>
             </ol>
           </div>
         </section>
 
-        {/* ============ 06 football: zoom through the letters into the stadium ============ */}
-        <section className={s.fo} id="football" data-scene="Football" aria-labelledby="football-title">
+        {/* ============ 05 why Jwan Sidou: zoom through the letters into the stadium ============ */}
+        <section className={s.fo} id="why" data-scene="Why Jwan" aria-labelledby="why-title">
           <div className={s.foStage} data-k="fostage">
             <Cover k="fobg" className={s.foBg}>
               <Lay><Img n="wide-sky" /></Lay><Lay><Img n="wide-clouds" /></Lay>
@@ -370,28 +301,31 @@ export default function Site() {
             <div className={s.foScrim} data-k="foscrim" aria-hidden />
             {(['land', 'port'] as const).map((o) => (
               <svg key={o} className={`${s.foMask} ${o === 'port' ? s.foMaskPort : s.foMaskLand}`} data-mask={o} aria-hidden
-                viewBox={o === 'land' ? '0 0 1600 900' : '0 0 900 1600'} preserveAspectRatio="xMidYMid slice">
+                viewBox={o === 'land' ? '0 0 1600 900' : '0 0 900 1600'} preserveAspectRatio="xMidYMid meet">
                 <defs>
-                  <linearGradient id={`fo-g-${o}`} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#5C0A2A" /><stop offset=".55" stopColor="#2A1240" /><stop offset="1" stopColor="#0A2E6E" /></linearGradient>
-                  <mask id={`fo-m-${o}`}>
-                    <rect width="100%" height="100%" fill="#fff" />
-                    <text data-letters x={o === 'land' ? 800 : 450} y={o === 'land' ? 600 : 960} textAnchor="middle" fontSize={o === 'land' ? 560 : 400} fontWeight={900} fill="#000" style={{ fontFamily: 'var(--f-display), Impact, sans-serif' }}>
-                      CDM
-                    </text>
+                  <linearGradient id={`fo-g-${o}`} gradientUnits="userSpaceOnUse" x1="0" y1="0" x2={o === 'land' ? 1600 : 900} y2={o === 'land' ? 900 : 1600}><stop offset="0" stopColor="#5C0A2A" /><stop offset=".55" stopColor="#2A1240" /><stop offset="1" stopColor="#0A2E6E" /></linearGradient>
+                  <mask id={`fo-m-${o}`} maskUnits="userSpaceOnUse" x="-4000" y="-4000" width="10000" height="10000">
+                    <rect x="-4000" y="-4000" width="10000" height="10000" fill="#fff" />
+                    {/* sized and placed for the screen by motion.ts; these values are the fallback */}
+                    {(o === 'land' ? ['WHY JWAN', 'SIDOU?'] : ['WHY', 'JWAN', 'SIDOU?']).map((line, i, all) => (
+                      <text key={line} data-line={i} data-letters={i === all.length - 1 ? '' : undefined} x={o === 'land' ? 800 : 450}
+                        y={(o === 'land' ? 380 : 560) + i * (o === 'land' ? 300 : 330)} textAnchor="middle" fontSize={300} fontWeight={900} fill="#000"
+                        style={{ fontFamily: 'var(--f-display), Impact, sans-serif' }}>{line}</text>
+                    ))}
                   </mask>
                 </defs>
-                <rect width="100%" height="100%" fill={`url(#fo-g-${o})`} mask={`url(#fo-m-${o})`} />
+                <rect x="-4000" y="-4000" width="10000" height="10000" fill={`url(#fo-g-${o})`} mask={`url(#fo-m-${o})`} />
               </svg>
             ))}
             <div className={s.foIntro} data-k="fointro">
-              <Label no="06">Football &amp; identity · <span lang="ja">背番号18</span></Label>
-              <h2 id="football-title" className={s.foTitle}><span className={s.foCdm}>{cv.football.position}</span><em>{cv.football.positionLong}</em></h2>
+              <Label no="05">Why Jwan Sidou · <span lang="ja">背番号18</span></Label>
+              <h2 id="why-title" className={s.foTitle}><span className={s.foCdm}>Why Jwan Sidou?</span><em>He plays CDM and this means …</em></h2>
             </div>
             <div className={s.foBody} data-k="fobody" data-at=".5">
               <p className={s.bodyLight} data-k="forole">{cv.football.role}</p>
               <p className={s.bodyLight} data-k="foplay">I have played football for many years. It taught me that being a team player goes far beyond the pitch, the classroom or the codebase.</p>
               <ol className={s.pillars}>
-                {PILLARS.map((p) => <li key={p.no} data-pillar><span>{p.no}</span><b>{p.title}</b><p>{p.text}</p></li>)}
+                {cv.qualities.map((q, i) => <li key={q.title} data-pillar><span>0{i + 1}</span><b>{q.title}</b><p>{q.text}</p></li>)}
               </ol>
             </div>
             <div className={s.foSpeed} data-k="fospeed" aria-hidden><Img n="fx-speed" /></div>
@@ -403,13 +337,13 @@ export default function Site() {
           </div>
         </section>
 
-        {/* ============ 07 contact: full time, the ball opens the last page ============ */}
+        {/* ============ 06 contact: full time, the ball opens the last page ============ */}
         <section className={s.co} id="contact" data-scene="Contact" aria-labelledby="contact-title">
           <div className={s.coStage} data-k="costage">
             <div className={s.coBall} data-k="coball" aria-hidden><Img n="ball-pattern" /><Img n="ball-shade" /></div>
             <div className={s.coPaper} data-k="copaper" data-at="1">
               <div className={s.coIn}>
-                <Label no="07">Contact · <span lang="ja">契約</span></Label>
+                <Label no="06">Contact · <span lang="ja">契約</span></Label>
                 <h2 id="contact-title" className={s.huge} data-k="cotitle">Let&apos;s <em>talk.</em></h2>
                 <p className={s.body} data-co>{cv.status}. The quickest way to reach me is by email.</p>
                 <div className={s.mailRow} data-co>
