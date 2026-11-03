@@ -3,7 +3,7 @@
    full-viewport pinned stages that motion.ts drives with ScrollTrigger.
    ===================================================================================================== */
 /* GPU layers for what scales every frame, switched on per scene by motion.ts (data-live) */
-.root [data-live] :is([data-k="sky"], [data-k="ground"], [data-k="fig"], [data-k="flare"], [data-k="back"], [data-k="front"], [data-k="photoin"], [data-k="fobg"], [data-mask], [data-k="pitch"], [data-k="coball"]) { will-change: transform; }
+.root [data-live] :is([data-k="sky"], [data-k="ground"], [data-k="focus"], [data-k="flare"], [data-k="back"], [data-k="front"], [data-k="photoin"], [data-k="fobg"], [data-mask], [data-k="pitch"], [data-k="coball"]) { will-change: transform; }
 .root { --display: var(--f-display), 'Arial Narrow', Impact, sans-serif; --serif: var(--f-serif), Georgia, serif; --mono: var(--f-mono), ui-monospace, monospace;
   --club: #3A0A24; --green: #2ECC71; overflow-x: clip; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -61,8 +61,8 @@
 .runner { position: absolute; inset: 0; }
 .runner img { position: absolute; display: block; height: auto; }
 .flare { mix-blend-mode: screen; opacity: .55; }
-.drop, .ballShadow, .kPhoto { display: none; }
-.on .drop { display: block; position: absolute; inset: 0; }
+.ballShadow, .kPhoto { display: none; }
+.drop { position: absolute; inset: 0; }
 .on .ballShadow { display: block; position: absolute; width: 7%; aspect-ratio: 3 / 1; border-radius: 50%; background: radial-gradient(closest-side, rgba(8, 30, 14, .75), rgba(8, 30, 14, 0)); }
 
 /* =====================================================================================================
