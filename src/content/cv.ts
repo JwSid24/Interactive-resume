@@ -20,7 +20,6 @@ export const cv = {
     role: 'Controls the game, provides defensive stability, wins possession and dictates the tempo from midfield.',
   },
   stats: [
-    { label: 'Position', value: 'CDM · Central Defensive Midfielder' },
     { label: 'Studying', value: 'BEng Software Technology, SDU · 5th semester' },
     { label: 'Based in', value: 'Odense, Denmark' },
     { label: 'Status', value: 'Open to new opportunities' },

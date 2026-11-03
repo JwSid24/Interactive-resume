@@ -3,7 +3,7 @@
    full-viewport pinned stages that motion.ts drives with ScrollTrigger.
    ===================================================================================================== */
 .root { --display: var(--f-display), 'Arial Narrow', Impact, sans-serif; --serif: var(--f-serif), Georgia, serif; --mono: var(--f-mono), ui-monospace, monospace;
-  --club: #3A0A24; overflow-x: clip; }
+  --club: #3A0A24; --green: #2ECC71; overflow-x: clip; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .mask { display: inline-block; overflow: hidden; vertical-align: top; padding: .04em .02em 0; margin: -.04em -.02em 0; }
 .mask > span { display: inline-block; }
@@ -59,8 +59,8 @@
 .runner { position: absolute; inset: 0; }
 .runner img { position: absolute; display: block; height: auto; }
 .flare { mix-blend-mode: screen; opacity: .55; }
-.drop, .ballShadow, .kPhoto { display: none; }
-.on .drop { display: block; position: absolute; inset: 0; }
+.ballShadow, .kPhoto { display: none; }
+.drop { position: absolute; inset: 0; }
 .on .ballShadow { display: block; position: absolute; width: 7%; aspect-ratio: 3 / 1; border-radius: 50%; background: radial-gradient(closest-side, rgba(8, 30, 14, .75), rgba(8, 30, 14, 0)); }
 
 /* =====================================================================================================
@@ -103,7 +103,6 @@
 .on .kOutline { display: block; position: absolute; left: -2vw; bottom: -6vh; margin: 0; font: 900 clamp(300px, 58vw, 980px)/.8 var(--display); color: transparent; -webkit-text-stroke: 2px rgba(22, 16, 26, .08); pointer-events: none; user-select: none; }
 .on .kCardUi { display: block; position: absolute; top: 13%; right: 7%; bottom: 9%; left: 55%; z-index: 2; pointer-events: none; }
 .on .kCardUi b { position: absolute; left: 22px; top: 10px; font: 900 clamp(64px, 7vw, 110px)/1 var(--display); color: var(--gold); text-shadow: 0 4px 24px rgba(10, 20, 40, .5); }
-.on .kCardUi span { position: absolute; right: 18px; top: 22px; padding: 6px 10px; border-radius: 8px; background: rgba(10, 20, 40, .78); color: var(--gold); font: 800 24px/1 var(--display); letter-spacing: .06em; }
 .on .kCardUi p { position: absolute; left: 0; right: 0; bottom: 0; display: grid; gap: 6px; margin: 0; padding: 18px 22px; border-radius: 0 0 28px 28px; background: var(--ink); color: #fff; font: 900 clamp(26px, 2.4vw, 36px)/1 var(--display); letter-spacing: .06em; }
 .on .kCardUi small { font: 600 10px/1.3 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--gold); }
 /* the photo slot in the profile card: same box as the card itself */
@@ -173,6 +172,10 @@
 .caMeta span { padding: 4px 9px; border-radius: 999px; color: #fff; background: var(--garnet); }
 .caMeta span[data-kind="Education"] { background: var(--blue); }
 .caMeta span[data-kind="Volunteering"] { background: var(--gold); color: var(--ink); }
+/* ongoing experiences: green marker, accent and an explicit label */
+.caNow { display: inline-flex; align-items: center; gap: 7px; padding: 3px 9px 3px 7px; border-radius: 999px; background: rgba(46, 204, 113, .14); border: 1px solid rgba(46, 204, 113, .5); color: #8EF0B6; font: 600 10px/1.4 var(--mono); letter-spacing: .14em; }
+.caNow i { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px rgba(46, 204, 113, .25); }
+.caItem[data-active] .caCard { border-color: rgba(46, 204, 113, .5); box-shadow: inset 3px 0 0 var(--green); }
 .caRole { margin: 0 0 6px; font: 800 clamp(28px, 2.5vw, 40px)/1 var(--display); text-transform: uppercase; letter-spacing: .01em; }
 .caPlace { margin: 0; color: var(--chalk); }
 .caPlace span { color: rgba(255, 255, 255, .5); }
@@ -194,6 +197,10 @@
 .on .caItem { position: relative; flex: 0 0 auto; width: clamp(300px, 27vw, 420px); }
 .on .caItem::before { content: ''; position: absolute; left: 0; top: 41%; width: 13px; height: 13px; margin-top: -6px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 5px rgba(233, 184, 58, .2); }
 .on .caItem::after { content: ''; position: absolute; left: 6px; top: calc(41% + 8px); height: 4%; width: 1px; background: rgba(233, 184, 58, .6); }
+.on .caItem[data-active]::before { background: var(--green); box-shadow: 0 0 0 5px rgba(46, 204, 113, .25); }
+.on .caItem[data-active]::after { background: rgba(46, 204, 113, .7); }
+.on .caNow i { animation: live 1.8s ease-in-out infinite; }
+@keyframes live { 50% { box-shadow: 0 0 0 6px rgba(46, 204, 113, 0); } }
 .on .caCard { position: absolute; left: 0; right: 0; top: 47%; height: auto; max-height: calc(53% - 40px); overflow: auto; background: rgba(17, 31, 61, .82); backdrop-filter: blur(6px); }
 .on .caEnd { display: flex; flex-direction: column; justify-content: center; gap: 14px; flex: 0 0 auto; width: 40vw; font: 900 clamp(48px, 6vw, 110px)/.9 var(--display); text-transform: uppercase; color: rgba(255, 255, 255, .9); }
 .on .caEnd span { font: 600 12px/1 var(--mono); letter-spacing: .2em; color: var(--gold); }
@@ -218,7 +225,8 @@
 .pillars p { margin: 0; font-size: 15px; line-height: 1.5; color: var(--chalk); }
 .foMove { max-width: 360px; margin: 48px 0 0; padding: 24px 24px 0; border-radius: 22px; overflow: hidden; background: linear-gradient(180deg, #F4C21E 0%, var(--gold) 45%, var(--garnet) 100%); box-shadow: 0 30px 70px rgba(0, 0, 0, .45); }
 .foMove::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(115deg, rgba(255, 255, 255, .2) 0 5px, transparent 5px 34px); }
-.foMove img { position: relative; display: block; width: 100%; }
+.moveBall { position: relative; width: 74%; aspect-ratio: 1; margin: 6% auto 9%; filter: drop-shadow(0 18px 24px rgba(22, 16, 26, .35)); }
+.moveBall img { position: absolute; inset: 0; width: 100%; height: 100%; }
 .foMove figcaption { position: relative; display: grid; gap: 4px; margin: 0 -24px; padding: 14px 24px; background: var(--ink); font: 900 clamp(34px, 3.4vw, 50px)/1 var(--display); letter-spacing: .04em; }
 .foMove small { font: 600 10px/1 var(--mono); letter-spacing: .2em; color: var(--gold); }
 
@@ -264,11 +272,6 @@
 .on .coBall img { position: absolute; inset: 0; width: 100%; height: 100%; }
 .on .coPaper { position: absolute; inset: 0; z-index: 1; display: flex; align-items: center; padding: 80px var(--pad) 60px; clip-path: circle(0% at 50% 50%); }
 
-/* ---------- optional episode overlay ---------- */
-.episode { position: fixed; inset: 0; z-index: 50; background: var(--night); }
-.episodeLoading { display: grid; place-items: center; height: 100%; margin: 0; font: 600 13px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--chalk); }
-.episodeClose { position: fixed; right: 16px; top: 16px; z-index: 51; min-height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, .5); background: rgba(10, 20, 40, .6); color: #fff; font: 600 12px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; cursor: pointer; }
-
 /* =====================================================================================================
    responsive
    ===================================================================================================== */
@@ -285,7 +288,7 @@
 }
 /* narrow / portrait screens (matches the "narrow" motion condition in motion.ts) */
 @media (max-width: 799px), (max-aspect-ratio: 1/1) {
-  .kName { top: 15%; transform: none; display: grid; justify-items: center; font-size: clamp(96px, 31vw, 260px); line-height: .82; }
+  .kName { top: 28%; transform: none; display: grid; justify-items: center; font-size: clamp(96px, 31vw, 260px); line-height: .82; }
   .kShade { background: linear-gradient(0deg, rgba(10, 20, 40, .96) 0%, rgba(10, 20, 40, .8) 30%, transparent 58%); }
   .kUi { display: flex; flex-direction: column; justify-content: flex-end; gap: 18px; padding: 0 var(--pad) 78px; }
   .kKicker { top: 84px; }

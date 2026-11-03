@@ -2,13 +2,12 @@
 // Motion-led portfolio: one continuous camera move through six pinned scenes. Every scene ends in the colour and
 // framing the next one starts with, so the page reads as a single shot. The DOM below is the readable, static
 // layout (used for reduced motion); motion.ts layers the scroll choreography on top when motion is allowed.
-import { useEffect, useRef, useState, lazy, Suspense, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { cv, Entry } from '../content/cv';
 import manifest from '../../public/assets/opening/manifest.json';
 import { setupMotion, scrollToScene, SQUAD_LINKS } from './motion';
 import s from './site.module.css';
 
-const OpeningScene = lazy(() => import('../scenes/opening/OpeningScene'));
 const A = (process.env.NEXT_PUBLIC_BASE_PATH || '') + '/assets/opening/';
 const img = (n: string) => A + n + '.svg';
 
@@ -20,6 +19,9 @@ export const NAV = [
   { id: 'contact', no: '06', label: 'Contact' },
 ];
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH || '';
+// where the ball comes to rest: the middle of the pitch, in 1920x1080 plate coordinates
+const BALL = { x: 960, y: 935, r: 52.8 };
+const ongoing = (e: Entry) => /present/i.test(e.when);
 /* career entries newest first: the timeline travels back through the seasons */
 const MONTH: Record<string, number> = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
 const startOf = (when: string) => { const [m, y] = when.split('–')[0].trim().split(' '); return +y * 12 + (MONTH[m] ?? 0); };
@@ -63,14 +65,10 @@ function Details({ e }: { e: Entry }) {
 
 export default function Site() {
   const root = useRef<HTMLDivElement>(null);
-  const opener = useRef<HTMLButtonElement>(null);
-  const wasOpen = useRef(false);
   const [motion, setMotion] = useState(false);
   const [menu, setMenu] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [episode, setEpisode] = useState(false);
   const email = cv.links.find((l) => l.label === 'Email')!;
-  const hero = manifest.shots.hero;
 
   /* motion is opt-out: reduced-motion users (or ?motion=reduce) get the static layout */
   useEffect(() => {
@@ -111,19 +109,6 @@ export default function Site() {
     return setupMotion(root.current);
   }, [motion]);
 
-  /* lock scroll while the episode is open; hand focus back to its button when it closes */
-  useEffect(() => {
-    document.body.classList.toggle('lock', episode);
-    if (!episode && wasOpen.current) opener.current?.focus({ preventScroll: true });
-    wasOpen.current = episode;
-  }, [episode]);
-  useEffect(() => {
-    if (!episode) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setEpisode(false); };
-    addEventListener('keydown', onKey);
-    return () => removeEventListener('keydown', onKey);
-  }, [episode]);
-
   const copy = async () => {
     try { await navigator.clipboard.writeText(email.value); setCopied(true); setTimeout(() => setCopied(false), 2200); } catch { /* clipboard blocked: the mailto link still works */ }
   };
@@ -162,13 +147,9 @@ export default function Site() {
                   <span className={s.mask} data-k="m2"><span data-k="n2">Sidou</span></span>
                 </h1>
                 <Cover k="front">
-                  <Lay k="fig" depth={1}>
-                    <Img n="cel-hero-shadow" eager />
-                    <i className={s.ballShadow} data-k="bshadow" style={{ left: `${(hero.ball.at[0] / 1920) * 100}%`, top: `${((hero.ball.at[1] + hero.ball.r * .9) / 1080) * 100}%` }} />
-                    {/* the ball at rest sits behind his boot; the falling one is drawn in front of him */}
-                    <Ball x={hero.ball.at[0]} y={hero.ball.at[1]} r={hero.ball.r} light="tl" k="rball" />
-                    <Img n="cel-hero" eager />
-                    <div className={s.drop} data-k="drop"><Ball x={hero.ball.at[0]} y={hero.ball.at[1]} r={hero.ball.r} light="tl" spin="spin" /></div>
+                  <Lay k="focus" depth={1}>
+                    <i className={s.ballShadow} data-k="bshadow" style={{ left: `${(BALL.x / 1920) * 100}%`, top: `${((BALL.y + BALL.r * .9) / 1080) * 100}%` }} />
+                    <div className={s.drop} data-k="drop"><Ball x={BALL.x} y={BALL.y} r={BALL.r} light="tl" spin="spin" /></div>
                   </Lay>
                   <Lay k="flare" depth={1.4}><Img n="low-flare" eager className={s.flare} /></Lay>
                 </Cover>
@@ -181,7 +162,6 @@ export default function Site() {
                 </div>
               </div>
             </div>
-            <span className={s.sr}>Jwan Sidou drawn as an anime footballer in a blaugrana number 18 kit, foot on the ball.</span>
 
             <div className={s.kUi} data-k="ui" data-at="0">
               <p className={s.kKicker} data-intro>01 — Portfolio · <span lang="ja">ポートフォリオ</span></p>
@@ -194,13 +174,12 @@ export default function Site() {
                 </ul>
                 <div className={s.kCta}>
                   <a className={s.btn} href="#contact" data-magnetic onClick={(e) => { e.preventDefault(); go('contact'); }}>Get in touch</a>
-                  <button ref={opener} className={s.btnGhost} data-magnetic onClick={() => setEpisode(true)}>▶ Watch the opening</button>
                 </div>
               </div>
               <p className={s.kCue} data-intro aria-hidden><i />Scroll to kick off</p>
             </div>
             <div className={s.kCardUi} data-k="cardui" aria-hidden>
-              <b>18</b><span>{cv.football.position}</span>
+              <b>18</b>
               <p>JWAN SIDOU<small>{cv.role}</small></p>
             </div>
             <div className={s.kExit} data-k="exit" aria-hidden />
@@ -275,9 +254,9 @@ export default function Site() {
             <div className={s.caLine} aria-hidden><i data-k="caball"><Img n="ball-pattern" /></i></div>
             <ol className={s.caTrack} data-k="track">
               {SEASONS.map((e) => (
-                <li key={e.title + e.place + e.when} className={s.caItem} data-season data-year={e.when.split('–')[0].trim().split(' ')[1]}>
+                <li key={e.title + e.place + e.when} className={s.caItem} data-season data-year={e.when.split('–')[0].trim().split(' ')[1]} data-active={ongoing(e) || undefined}>
                   <div className={s.caCard} data-season-in>
-                    <p className={s.caMeta}><span data-kind={e.kind}>{e.kind}</span>{e.when}</p>
+                    <p className={s.caMeta}><span data-kind={e.kind}>{e.kind}</span>{e.when}{ongoing(e) && <b className={s.caNow}><i aria-hidden />Ongoing</b>}</p>
                     <h3 className={s.caRole}>{e.title}</h3>
                     <p className={s.caPlace}>{e.place}{e.location ? <span> · {e.location}</span> : null}</p>
                     {e.tags && <ul className={s.tags} aria-label={`${e.kind} details`}>{e.tags.map((t) => <li key={t}>{t}</li>)}</ul>}
@@ -330,7 +309,7 @@ export default function Site() {
             </div>
             <div className={s.foSpeed} data-k="fospeed" aria-hidden><Img n="fx-speed" /></div>
             <figure className={s.foMove} data-k="fomove">
-              <img src={img('face-shout')} alt="Jwan Sidou shouting, anime close-up" loading="lazy" decoding="async" />
+              <div className={s.moveBall} aria-hidden><img src={img('ball-pattern')} alt="" data-k="moveball" loading="lazy" decoding="async" /><Img n="ball-shade" /></div>
               <figcaption><small>必殺技 · Special move</small>TIGER SHOT</figcaption>
             </figure>
             <div className={s.foNight} data-k="fonight" aria-hidden />
@@ -363,15 +342,6 @@ export default function Site() {
         </section>
       </main>
 
-      {/* ---------- optional: the original anime opening ---------- */}
-      {episode && (
-        <div className={s.episode} role="dialog" aria-modal="true" aria-label="The opening episode">
-          <Suspense fallback={<p className={s.episodeLoading}>Loading the episode…</p>}>
-            <OpeningScene embedded onExit={() => setEpisode(false)} />
-          </Suspense>
-          <button className={s.episodeClose} onClick={() => setEpisode(false)} autoFocus>Close ✕</button>
-        </div>
-      )}
     </div>
   );
 }

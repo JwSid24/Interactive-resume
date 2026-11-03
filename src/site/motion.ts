@@ -12,7 +12,7 @@ export const SQUAD_LINKS = [[0, 2], [0, 3], [1, 2], [2, 3], [3, 4], [1, 5], [2, 
 
 const PAPER = '#F5F1E8', NIGHT = '#0A1428', CLUB = '#3A0A24';
 const FULL = 'inset(0% 0% 0% 0% round 0px)';
-const FACE = [910 / 1920, 318.16 / 1080];          // the hero's face in plate coordinates: the camera's anchor
+const FOCUS = [960 / 1920, 935 / 1080];            // where the ball lands on the pitch (plate coordinates): the camera's anchor
 
 /* where each nav target sits on the scroll, and which scene a focused element belongs to */
 const marks = new Map<string, () => number>();
@@ -66,16 +66,17 @@ function build(root: HTMLElement, wide: boolean) {
   const kick = root.querySelector('[data-kick]') as HTMLElement;
   const stage = $('stage'), frame = $('frame');
   const covers = [$('back'), $('front')];
-  const layers = { sky: $('sky'), ground: $('ground'), fig: $('fig'), flare: $('flare') };
-  gsap.set(Object.values(layers), { transformOrigin: `${FACE[0] * 100}% ${FACE[1] * 100}%` });
-  // the card the hero shrinks into, and how far the plate must travel so his face lands in its centre
+  const layers = { sky: $('sky'), ground: $('ground'), fig: $('focus'), flare: $('flare') };
+  gsap.set(Object.values(layers), { transformOrigin: `${FOCUS[0] * 100}% ${FOCUS[1] * 100}%` });
+  // the card the hero shrinks into, and how far the plate must travel so the ball lands in its centre
   const card = wide ? [13, 7, 9, 55] : [11, 9, 47, 9];      // top, right, bottom, left in %
   const cardClip = `inset(${card[0]}% ${card[1]}% ${card[2]}% ${card[3]}% round ${wide ? 28 : 22}px)`;
   const faceShift = () => {
     const vw = innerWidth, vh = innerHeight, pw = Math.max(vw, vh * 16 / 9), ph = Math.max(vh, vw * 9 / 16);
-    const fx = vw / 2 + (FACE[0] - .5) * pw, fy = vh / 2 + (FACE[1] - .5) * ph;
-    const cx = vw * (card[3] + (100 - card[1] - card[3]) / 2) / 100, cy = vh * (card[0] + (100 - card[0] - card[2]) / 2) / 100;
-    return { x: cx - fx, y: cy - fy * (wide ? 1 : 1) + (wide ? vh * .08 : vh * .05) };
+    const fx = vw / 2 + (FOCUS[0] - .5) * pw, fy = vh / 2 + (FOCUS[1] - .5) * ph;
+    // the ball sits in the lower part of the card, so the pitch still fills it to the bottom edge
+    const cx = vw * (card[3] + (100 - card[1] - card[3]) / 2) / 100, cy = vh * (card[0] + (100 - card[0] - card[2]) * .76) / 100;
+    return { x: cx - fx, y: cy - fy };
   };
 
   // arrival: letters rise out of their masks while the camera settles
@@ -85,30 +86,28 @@ function build(root: HTMLElement, wide: boolean) {
     .from($$('[data-intro]', stage), { y: 30, opacity: 0, duration: 1.1, stagger: .08 }, .55);
 
   // One timeline for the whole kick-off scene, in four phases: 0-1 a ball drops in and the camera follows it down
-  // to his feet, 1-2 hero to profile card, 2-3 drift while the profile scrolls past, 3-4 the card opens and the
+  // to the pitch, 1-2 hero to profile card, 2-3 drift while the profile scrolls past, 3-4 the card opens and the
   // camera pushes in to navy. A single timeline means phases that touch the same properties never fight.
   const aboutIn = root.querySelector('#about [data-scene]') as HTMLElement;
   const fs = () => faceShift();
   // elements that start hidden get their first state now: rewinding the timeline restores these values
   gsap.set($('outline'), { opacity: 0, scale: .75, xPercent: -10 });
   gsap.set($('cardui'), { opacity: 0, y: 30 });
-  // on portrait screens the plate rests a little lower, so the name reads above his head
-  const rest = () => (wide ? 0 : innerHeight * .12);
+  const rest = () => 0;     // the plate's resting offset (kept as a hook for framing tweaks)
   gsap.set(covers, { y: rest() });
-  const drop = $('drop'), spin = $('spin'), rball = $('rball'), bshadow = $('bshadow'), photo = $('photo'), photoIn = $('photoin');
+  const drop = $('drop'), spin = $('spin'), bshadow = $('bshadow'), photo = $('photo'), photoIn = $('photoin');
   gsap.set(drop, { yPercent: -100 });
-  gsap.set(rball, { opacity: 0 });
   gsap.set(bshadow, { xPercent: -50, yPercent: -50, scale: .2, opacity: 0 });
   gsap.set(photo, { opacity: 0 });
-  // the camera follows the ball by pushing in towards the spot where it lands (just in front of his boot)
-  const LAND = [860.4 / 1920, 1007.2 / 1080];
+  // the camera follows the ball by pushing in towards the spot where it lands
+  const LAND = FOCUS;
   const landOrigin = () => {
     const vw = innerWidth, vh = innerHeight, pw = Math.max(vw, vh * 16 / 9), ph = Math.max(vh, vw * 9 / 16);
     return `${vw / 2 + (LAND[0] - .5) * pw}px ${vh / 2 + (LAND[1] - .5) * ph}px`;
   };
   const push = wide ? 1.28 : 1.3;
   const kTl = gsap.timeline({ paused: true, defaults: { ease: 'none', immediateRender: false } });
-  // phase 0: the ball drops out of the sky, bounces twice and settles under his boot; the camera follows it
+  // phase 0: the ball drops out of the sky onto the pitch, bounces twice and settles; the camera follows it
   kTl.fromTo($('ui'), { opacity: 1, y: 0 }, { opacity: 0, y: -50, duration: .25 }, 0)
     .fromTo(covers, { y: rest, scale: 1, transformOrigin: landOrigin }, { y: 0, scale: push, duration: .45, ease: 'power2.inOut' }, .05)
     .fromTo(drop, { yPercent: -100 }, { yPercent: 0, duration: .5, ease: 'power2.in' }, .02)
@@ -122,14 +121,12 @@ function build(root: HTMLElement, wide: boolean) {
     .fromTo(bshadow, { scale: .8, opacity: .4 }, { scale: 1, opacity: .55, duration: .1 }, .62)
     .fromTo($('tilt'), { y: 0 }, { y: 9, duration: .025 }, .52)
     .fromTo($('tilt'), { y: 9 }, { y: 0, duration: .16, ease: 'elastic.out(1, .3)' }, .545)
-    .fromTo(drop, { autoAlpha: 1 }, { autoAlpha: 0, duration: .01 }, .83)
-    .fromTo(rball, { opacity: 0 }, { opacity: 1, duration: .01 }, .83)
     .fromTo(covers, { y: 0, scale: push }, { y: rest, scale: 1, duration: .17, ease: 'power2.inOut' }, .83)
     // phase 1: hero to profile card
     .fromTo($('m1'), { xPercent: 0, opacity: 1 }, { xPercent: -70, opacity: 0, duration: .45 }, 1)
     .fromTo($('m2'), { xPercent: 0, opacity: 1 }, { xPercent: 70, opacity: 0, duration: .45 }, 1)
     .fromTo(layers.sky, { scale: 1 }, { scale: 1.1, duration: .75 }, 1)
-    .fromTo(layers.ground, { scale: 1 }, { scale: 1.28, duration: .75 }, 1)
+    .fromTo(layers.ground, { scale: 1 }, { scale: 1.65, duration: .75 }, 1)
     .fromTo(layers.fig, { scale: 1 }, { scale: wide ? 1.7 : 1.6, duration: .75 }, 1)
     .fromTo(layers.flare, { opacity: 1 }, { opacity: 0, duration: .3 }, 1)
     .fromTo(covers, { x: 0, y: rest }, { x: () => fs().x, y: () => fs().y, duration: .5, ease: 'power2.inOut' }, 1.28)
@@ -137,7 +134,7 @@ function build(root: HTMLElement, wide: boolean) {
     .fromTo(stage, { backgroundColor: NIGHT }, { backgroundColor: PAPER, duration: .35 }, 1.32)
     .fromTo([$('scrim'), $('shade')], { opacity: 1 }, { opacity: 0, duration: .3 }, 1.3)
     .fromTo($('outline'), { opacity: 0, scale: .75, xPercent: -10 }, { opacity: 1, scale: 1, xPercent: 0, duration: .5 }, 1.4)
-    // the card settles, then the photo slot takes over from the character
+    // the card settles, then the photo slot takes over from the pitch
     .fromTo(photo, { opacity: 0 }, { opacity: 1, duration: .2 }, 1.62)
     .fromTo(photoIn, { scale: 1.18 }, { scale: 1, duration: .38 }, 1.62)
     .fromTo($('cardui'), { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: .22 }, 1.78)
@@ -145,14 +142,14 @@ function build(root: HTMLElement, wide: boolean) {
     .fromTo(layers.fig, { scale: wide ? 1.7 : 1.6 }, { scale: wide ? 1.9 : 1.75, duration: 1 }, 2)
     .fromTo(photoIn, { scale: 1 }, { scale: 1.06, duration: 1 }, 2)
     .fromTo($('outline'), { yPercent: 0 }, { yPercent: -18, duration: 1 }, 2)
-    // phase 3: the photo gives way to the pitch, the card opens and the camera pushes into navy (the skills board)
+    // phase 3: the photo gives way to the pitch, the card opens and the camera pushes into the ball, then navy (the skills board)
     .fromTo($('cardui'), { opacity: 1, y: 0 }, { opacity: 0, y: -20, duration: .15 }, 3)
     .fromTo(photo, { opacity: 1 }, { opacity: 0, duration: .2 }, 3)
     .fromTo(photoIn, { scale: 1.06 }, { scale: 1.25, duration: .2 }, 3)
     .fromTo(frame, { clipPath: cardClip }, { clipPath: FULL, duration: .6, ease: 'power2.inOut' }, 3)
     .fromTo(covers, { x: () => fs().x, y: () => fs().y }, { x: 0, y: rest, duration: .6, ease: 'power2.inOut' }, 3)
     .fromTo(layers.fig, { scale: wide ? 1.9 : 1.75 }, { scale: 4.2, duration: 1, ease: 'power2.in' }, 3)
-    .fromTo(layers.ground, { scale: 1.28 }, { scale: 2, duration: 1 }, 3)
+    .fromTo(layers.ground, { scale: 1.65 }, { scale: 2.3, duration: 1 }, 3)
     .fromTo($('outline'), { opacity: 1 }, { opacity: 0, duration: .3 }, 3)
     .fromTo($('exit'), { opacity: 0 }, { opacity: 1, duration: .45 }, 3.55)
     .fromTo(stage, { backgroundColor: PAPER }, { backgroundColor: NIGHT, duration: .3 }, 3.6);
@@ -330,7 +327,7 @@ function build(root: HTMLElement, wide: boolean) {
     return { x: ox + (ext.x + ext.width / 2) * k, y: oy + (ty - fontPx * .36) * k };
   };
   const dOrigin = () => `${aim().x}px ${aim().y}px`;
-  const fTl = gsap.timeline({ defaults: { ease: 'none' }, scrollTrigger: { trigger: fo, start: 'top top', end: () => '+=' + innerHeight * 3.4, pin: $('fostage'), scrub: 1, invalidateOnRefresh: true } });
+  const fTl = gsap.timeline({ defaults: { ease: 'none' }, scrollTrigger: { trigger: fo, start: 'top top', end: () => '+=' + innerHeight * 2.3, pin: $('fostage'), scrub: 1, invalidateOnRefresh: true } });
   // Chrome caps SVG text at 10,000px on screen and shrinks the glyphs beyond that, so the zoom stops just under
   // the cap for this screen size and the garnet fades away to finish the move through the letter
   const maxZoom = () => Math.max(4, 9000 / (fontPx * scaleK()));
@@ -342,10 +339,12 @@ function build(root: HTMLElement, wide: boolean) {
     .fromTo($('foscrim'), { opacity: 0 }, { opacity: .74, duration: .08 }, .36)
     .fromTo([$('forole'), $('foplay')], { y: 40, opacity: 0 }, { y: 0, opacity: 1, stagger: .025, duration: .06 }, .4)
     .fromTo($$('[data-pillar]', fo), { y: 70, opacity: 0, clipPath: 'inset(0% 0% 100% 0%)' }, { y: 0, opacity: 1, clipPath: 'inset(0% 0% 0% 0%)', stagger: .03, duration: .08 }, .45)
-    .to($('fobody'), { opacity: 0, y: -60, duration: .06 }, .62)
-    .fromTo($('fospeed'), { opacity: 0, xPercent: 12 }, { opacity: .9, xPercent: -12, duration: .3 }, .64)
-    .fromTo($('fomove'), { rotationY: -110, scale: .5, opacity: 0 }, { rotationY: 0, scale: 1, opacity: 1, duration: .14, ease: 'back.out(1.4)' }, .67)
-    .to($('fonight'), { opacity: 1, duration: .1 }, .9);
+    // Tiger Shot: one quick, punchy beat, then straight on to the contact scene
+    .to($('fobody'), { opacity: 0, y: -60, duration: .05 }, .68)
+    .fromTo($('fospeed'), { opacity: 0, xPercent: 12 }, { opacity: .9, xPercent: -12, duration: .2 }, .68)
+    .fromTo($('fomove'), { rotationY: -110, scale: .5, opacity: 0 }, { rotationY: 0, scale: 1, opacity: 1, duration: .09, ease: 'back.out(1.4)' }, .7)
+    .fromTo($('moveball'), { rotation: 0 }, { rotation: 540, duration: .2, ease: 'power2.out' }, .7)
+    .to($('fonight'), { opacity: 1, duration: .08 }, .86);
   const fSt = fTl.scrollTrigger!;
   sceneOf.set('why', fSt);
   marks.set('why', () => fSt.start);
