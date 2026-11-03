@@ -159,12 +159,14 @@ function build(root: HTMLElement, wide: boolean) {
     for (let i = 0; i < 4; i++) if (y <= bounds[i + 1] || i === 3) return Math.min(4, i + Math.max(0, (y - bounds[i]) / Math.max(1, bounds[i + 1] - bounds[i])));
     return 4;
   };
-  let kTarget = 0;
+  // the scrub: one re-targetable tween on a proxy, instead of creating a new tween for every scroll event
+  const kPlay = { t: 0 };
+  const kTo = gsap.quickTo(kPlay, 't', { duration: .9, ease: 'power3.out', onUpdate: () => { kTl.time(kPlay.t); } });
   const kDrive = (instant: boolean) => {
-    kTarget = kTime(scrollY);
+    const target = kTime(scrollY);
+    if (!instant) return kTo(target);
     // a full sweep initialises every phase, so jumping back over one restores its start state
-    if (instant) { gsap.killTweensOf(kTl); kTl.progress(1); kTl.time(kTarget); }
-    else gsap.to(kTl, { time: kTarget, duration: .9, ease: 'power3.out', overwrite: true });
+    gsap.killTweensOf(kPlay); kPlay.t = target; kTl.progress(1); kTl.time(target); kTo(target, target);
   };
   const kickSt = ScrollTrigger.create({
     trigger: kick, start: 'top top', end: 'bottom bottom', pin: stage, pinSpacing: false,
@@ -180,7 +182,7 @@ function build(root: HTMLElement, wide: boolean) {
   const settleKick = () => kDrive(true);
   if (process.env.NODE_ENV !== 'production') (window as unknown as { __kTl: gsap.core.Timeline }).__kTl = kTl;
   driven.push(settleKick);
-  off.push(() => { gsap.killTweensOf(kTl); driven.splice(driven.indexOf(settleKick), 1); });
+  off.push(() => { gsap.killTweensOf(kPlay); driven.splice(driven.indexOf(settleKick), 1); });
   sceneOf.set('top', kickSt);
   marks.set('about', () => aboutIn.getBoundingClientRect().top + scrollY - 90);
 
@@ -190,7 +192,7 @@ function build(root: HTMLElement, wide: boolean) {
     const nameX = gsap.quickTo($('name'), 'x', { duration: 1, ease: 'power3' });
     const tilt = $('tilt'), rx = gsap.quickTo(tilt, 'rotationX', { duration: .8, ease: 'power3' }), ry = gsap.quickTo(tilt, 'rotationY', { duration: .8, ease: 'power3' });
     on(window, 'pointermove', () => {
-      if (stage.getBoundingClientRect().bottom < 0) return;
+      if (scrollY > bounds[4]) return;            // the kick-off stage has scrolled away
       pars.forEach((p) => { p.x(-pointer.x * p.d * 26); p.y(-pointer.y * p.d * 14); });
       nameX(pointer.x * 18);
       const kt = kTl.time(), k = Math.max(0, Math.min(1, kt - 1)) * (1 - Math.max(0, Math.min(1, (kt - 3) / .4)));
@@ -259,9 +261,13 @@ function build(root: HTMLElement, wide: boolean) {
   if (fine) {
     const ins = [...toks, ...staff].map((t) => { const el = t.querySelector('[data-tok-in]') as HTMLElement; return { t, x: gsap.quickTo(el, 'x', { duration: .6, ease: 'power3' }), y: gsap.quickTo(el, 'y', { duration: .6, ease: 'power3' }) }; });
     const stageSk = $('skstage');
+    let fieldBox = { left: 0, top: 0 };
+    on(stageSk, 'pointerenter', () => { const r = field.getBoundingClientRect(); fieldBox = { left: r.left, top: r.top }; });
     on(stageSk, 'pointermove', (e: PointerEvent) => {
       ins.forEach((o) => {
-        const r = o.t.getBoundingClientRect(), dx = r.left + r.width / 2 - e.clientX, dy = r.top + r.height / 2 - e.clientY, d = Math.hypot(dx, dy) || 1;
+        // a token's centre is the field's corner plus the position GSAP gave it (xPercent/yPercent centre it)
+        const cx = fieldBox.left + (gsap.getProperty(o.t, 'x') as number), cy = fieldBox.top + (gsap.getProperty(o.t, 'y') as number);
+        const dx = cx - e.clientX, dy = cy - e.clientY, d = Math.hypot(dx, dy) || 1;
         const push = d < 170 ? (1 - d / 170) * 34 : 0;
         o.x((dx / d) * push); o.y((dy / d) * push);
       });
@@ -275,15 +281,20 @@ function build(root: HTMLElement, wide: boolean) {
   const seasons = $$('[data-season]', ca);
   const dist = () => Math.max(0, track.scrollWidth - innerWidth);
   let lastYear = year.textContent;
+  let seasonX: number[] = [], lineW = 0, ballR = 18;
+  const measureCareer = () => { seasonX = seasons.map((s) => s.offsetLeft); ballR = ball.clientWidth / 2; lineW = (ball.parentElement as HTMLElement).clientWidth - ball.clientWidth; };
+  measureCareer();
+  ScrollTrigger.addEventListener('refresh', measureCareer);
+  off.push(() => ScrollTrigger.removeEventListener('refresh', measureCareer));
   const h = gsap.to(track, {
     x: () => -dist(), ease: 'none',
     scrollTrigger: { trigger: ca, start: 'top top', end: () => '+=' + dist(), pin: $('castage'), scrub: 1, invalidateOnRefresh: true },
     onUpdate() {
-      const x = gsap.getProperty(track, 'x') as number, lineW = (ball.parentElement as HTMLElement).clientWidth - ball.clientWidth;
+      const x = gsap.getProperty(track, 'x') as number;
       const bx = this.progress() * lineW;
-      gsap.set(ball, { x: bx, rotation: (bx / (ball.clientWidth / 2)) * 57.3 });
+      gsap.set(ball, { x: bx, rotation: (bx / ballR) * 57.3 });
       let y = seasons[0].dataset.year;
-      for (const s of seasons) if (s.offsetLeft + x < innerWidth * .6) y = s.dataset.year;
+      seasons.forEach((s, i) => { if (seasonX[i] + x < innerWidth * .6) y = s.dataset.year; });
       if (y !== lastYear) { lastYear = y; year.textContent = y; gsap.fromTo(year, { yPercent: 18, opacity: .2 }, { yPercent: 0, opacity: 1, duration: .5, ease: 'power3.out' }); }
     },
   });
@@ -394,6 +405,15 @@ function build(root: HTMLElement, wide: boolean) {
     });
   }
 
+  // Elements that scale every frame are promoted to GPU layers (will-change: transform in the CSS), but only while
+  // their scene is on or near the screen, so the GPU keeps a texture instead of re-drawing them at every zoom step
+  // and offscreen scenes hold no GPU memory.
+  const live: [Element, HTMLElement][] = [[kick, stage], [sk, $('skstage')], [fo, $('fostage')], [co, $('costage')]];
+  live.forEach(([trigger, el]) => ScrollTrigger.create({ trigger, start: 'top bottom+=50%', end: 'bottom top-=50%', onToggle: (self) => el.toggleAttribute('data-live', self.isActive) }));
+  off.push(() => live.forEach(([, el]) => el.removeAttribute('data-live')));
+  const announce = () => dispatchEvent(new Event('motion:refresh'));
+  ScrollTrigger.addEventListener('refresh', announce);
+  off.push(() => ScrollTrigger.removeEventListener('refresh', announce));
   ScrollTrigger.refresh();
   // dev only: lets browser tests jump the scrubbed timelines to where the scroll position says they should be
   if (process.env.NODE_ENV !== 'production') (window as unknown as { __ST: typeof ScrollTrigger }).__ST = ScrollTrigger;

@@ -9,7 +9,10 @@ import { setupMotion, scrollToScene, SQUAD_LINKS } from './motion';
 import s from './site.module.css';
 
 const A = (process.env.NEXT_PUBLIC_BASE_PATH || '') + '/assets/opening/';
-const img = (n: string) => A + n + '.svg';
+// The detailed plates (crowds, clouds, pitch) ship as WebP renders of the SVG art: the camera moves scale them
+// every frame, and a bitmap scales on the GPU where a complex SVG would be re-drawn from scratch each time.
+const RASTER = new Set(['low-sky', 'low-ground', 'wide-sky', 'wide-clouds', 'wide-stadium', 'wide-pitch', 'fx-speed']);
+const img = (n: string) => A + n + (RASTER.has(n) ? '.webp' : '.svg');
 
 export const NAV = [
   { id: 'about', no: '02', label: 'About' },
@@ -40,7 +43,8 @@ function Lay({ k, depth = 0, children, className = '' }: { k?: string; depth?: n
   return <div className={`${s.lay} ${className}`} data-k={k}><div className={s.par} data-depth={depth}>{children}</div></div>;
 }
 function Img({ n, eager, className }: { n: string; eager?: boolean; className?: string }) {
-  return <img className={className} src={img(n)} alt="" loading={eager ? 'eager' : 'lazy'} decoding="async" draggable={false} />;
+  // eager images are the opening viewport: fetched first, everything else waits until it is near the screen
+  return <img className={className} src={img(n)} alt="" loading={eager ? 'eager' : 'lazy'} fetchPriority={eager ? 'high' : 'auto'} decoding="async" draggable={false} />;
 }
 function Ball({ x, y, r, light = 'tr', k, spin }: { x: number; y: number; r: number; light?: 'tr' | 'tl'; k?: string; spin?: string }) {
   const size = (manifest.ball.box * r) / manifest.ball.r;
@@ -80,28 +84,40 @@ export default function Site() {
     return () => mq.removeEventListener('change', update);
   }, []);
 
-  /* the match clock and progress bar follow the scroll in every mode */
+  /* the match clock and progress bar follow the scroll in every mode. Scene positions are measured once per
+     layout (load, resize, and each time the scroll animations re-measure), so a scroll frame reads no layout. */
   useEffect(() => {
     const clock = root.current?.querySelector<HTMLElement>('[data-clock]');
     const label = root.current?.querySelector<HTMLElement>('[data-clock-label]');
     const bar = root.current?.querySelector<HTMLElement>('[data-progress]');
     const scenes = Array.from(root.current?.querySelectorAll<HTMLElement>('[data-scene]') ?? []);
-    let raf = 0;
+    let raf = 0, max = 1, marks: [number, string][] = [];
+    let lastMinute = -1;
+    const measure = () => {
+      max = Math.max(1, document.documentElement.scrollHeight - innerHeight);
+      // a pinned stage is measured by its spacer, which keeps its place in the page while the stage is fixed
+      marks = scenes.map((el) => [(el.closest('.pin-spacer') ?? el).getBoundingClientRect().top + scrollY - innerHeight * .45, el.dataset.scene!]);
+      tick();
+    };
     const tick = () => {
       raf = 0;
-      const max = document.documentElement.scrollHeight - innerHeight;
-      const p = max > 0 ? Math.min(1, scrollY / max) : 0;
-      if (clock) clock.textContent = `${Math.round(p * 90)}'`;
+      const p = Math.min(1, scrollY / max), minute = Math.round(p * 90);
       if (bar) bar.style.transform = `scaleX(${p})`;
+      if (clock && minute !== lastMinute) { lastMinute = minute; clock.textContent = `${minute}'`; }
       let current = 'Kick-off';
-      for (const el of scenes) if (el.getBoundingClientRect().top < innerHeight * .45) current = el.dataset.scene!;
+      for (const [top, name] of marks) if (scrollY >= top) current = name;
       if (label && label.textContent !== current) label.textContent = current;
     };
     const onScroll = () => { if (!raf) raf = requestAnimationFrame(tick); };
-    tick();
+    measure();
     addEventListener('scroll', onScroll, { passive: true });
-    addEventListener('resize', onScroll);
-    return () => { removeEventListener('scroll', onScroll); removeEventListener('resize', onScroll); cancelAnimationFrame(raf); };
+    addEventListener('resize', measure);
+    addEventListener('load', measure);
+    addEventListener('motion:refresh', measure);
+    return () => {
+      removeEventListener('scroll', onScroll); removeEventListener('resize', measure); removeEventListener('load', measure);
+      removeEventListener('motion:refresh', measure); cancelAnimationFrame(raf);
+    };
   }, [motion]);
 
   useEffect(() => {

@@ -2,6 +2,8 @@
    Base rules are the static, readable layout (reduced motion). Everything under .on is the motion layout:
    full-viewport pinned stages that motion.ts drives with ScrollTrigger.
    ===================================================================================================== */
+/* GPU layers for what scales every frame, switched on per scene by motion.ts (data-live) */
+.root [data-live] :is([data-k="sky"], [data-k="ground"], [data-k="focus"], [data-k="flare"], [data-k="back"], [data-k="front"], [data-k="photoin"], [data-k="fobg"], [data-mask], [data-k="pitch"], [data-k="coball"]) { will-change: transform; }
 .root { --display: var(--f-display), 'Arial Narrow', Impact, sans-serif; --serif: var(--f-serif), Georgia, serif; --mono: var(--f-mono), ui-monospace, monospace;
   --club: #3A0A24; --green: #2ECC71; overflow-x: clip; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -174,7 +176,8 @@
 .caMeta span[data-kind="Volunteering"] { background: var(--gold); color: var(--ink); }
 /* ongoing experiences: green marker, accent and an explicit label */
 .caNow { display: inline-flex; align-items: center; gap: 7px; padding: 3px 9px 3px 7px; border-radius: 999px; background: rgba(46, 204, 113, .14); border: 1px solid rgba(46, 204, 113, .5); color: #8EF0B6; font: 600 10px/1.4 var(--mono); letter-spacing: .14em; }
-.caNow i { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px rgba(46, 204, 113, .25); }
+.caNow i { position: relative; width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px rgba(46, 204, 113, .25); }
+.caNow i::after { content: ''; position: absolute; inset: -3px; border-radius: 50%; border: 2px solid var(--green); opacity: 0; }
 .caItem[data-active] .caCard { border-color: rgba(46, 204, 113, .5); box-shadow: inset 3px 0 0 var(--green); }
 .caRole { margin: 0 0 6px; font: 800 clamp(28px, 2.5vw, 40px)/1 var(--display); text-transform: uppercase; letter-spacing: .01em; }
 .caPlace { margin: 0; color: var(--chalk); }
@@ -199,9 +202,9 @@
 .on .caItem::after { content: ''; position: absolute; left: 6px; top: calc(41% + 8px); height: 4%; width: 1px; background: rgba(233, 184, 58, .6); }
 .on .caItem[data-active]::before { background: var(--green); box-shadow: 0 0 0 5px rgba(46, 204, 113, .25); }
 .on .caItem[data-active]::after { background: rgba(46, 204, 113, .7); }
-.on .caNow i { animation: live 1.8s ease-in-out infinite; }
-@keyframes live { 50% { box-shadow: 0 0 0 6px rgba(46, 204, 113, 0); } }
-.on .caCard { position: absolute; left: 0; right: 0; top: 47%; height: auto; max-height: calc(53% - 40px); overflow: auto; background: rgba(17, 31, 61, .82); backdrop-filter: blur(6px); }
+.on .caNow i::after { animation: live 1.8s ease-out infinite; }
+@keyframes live { 0% { transform: scale(.6); opacity: .9; } 100% { transform: scale(2.2); opacity: 0; } }
+.on .caCard { position: absolute; left: 0; right: 0; top: 47%; height: auto; max-height: calc(53% - 40px); overflow: auto; background: rgba(17, 31, 61, .94); }
 .on .caEnd { display: flex; flex-direction: column; justify-content: center; gap: 14px; flex: 0 0 auto; width: 40vw; font: 900 clamp(48px, 6vw, 110px)/.9 var(--display); text-transform: uppercase; color: rgba(255, 255, 255, .9); }
 .on .caEnd span { font: 600 12px/1 var(--mono); letter-spacing: .2em; color: var(--gold); }
 
@@ -219,7 +222,7 @@
 .foTitle em { margin-top: 14px; font-size: clamp(26px, 3vw, 48px); line-height: 1.1; color: var(--gold); }
 .foBody { max-width: 1100px; }
 .pillars { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 30px 0 0; padding: 0; list-style: none; }
-.pillars li { padding: 20px; border-radius: 16px; background: rgba(10, 20, 40, .55); backdrop-filter: blur(8px); border: 1px solid var(--chalk-2); }
+.pillars li { padding: 20px; border-radius: 16px; background: rgba(10, 20, 40, .74); border: 1px solid var(--chalk-2); }
 .pillars span { font: 600 10px/1 var(--mono); letter-spacing: .16em; color: var(--gold); }
 .pillars b { display: block; margin: 16px 0 8px; font: 800 clamp(24px, 2.2vw, 34px)/1 var(--display); text-transform: uppercase; }
 .pillars p { margin: 0; font-size: 15px; line-height: 1.5; color: var(--chalk); }
