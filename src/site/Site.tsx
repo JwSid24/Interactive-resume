@@ -22,8 +22,8 @@ export const NAV = [
   { id: 'contact', no: '06', label: 'Contact' },
 ];
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH || '';
-// where the ball comes to rest: the middle of the pitch, in 1920x1080 plate coordinates
-const BALL = { x: 960, y: 935, r: 52.8 };
+// where the ball comes to rest in the opening: at his boot, in 1920x1080 plate coordinates
+const BALL = { x: manifest.shots.hero.ball.at[0], y: manifest.shots.hero.ball.at[1], r: manifest.shots.hero.ball.r };
 const ongoing = (e: Entry) => /present/i.test(e.when);
 /* career entries newest first: the timeline travels back through the seasons */
 const MONTH: Record<string, number> = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
@@ -163,8 +163,13 @@ export default function Site() {
                   <span className={s.mask} data-k="m2"><span data-k="n2">Sidou</span></span>
                 </h1>
                 <Cover k="front">
-                  <Lay k="focus" depth={1}>
+                  {/* the opening is the one place the character appears: the ball drops to his feet */}
+                  <Lay k="fig" depth={1}>
+                    <Img n="cel-hero-shadow" eager />
                     <i className={s.ballShadow} data-k="bshadow" style={{ left: `${(BALL.x / 1920) * 100}%`, top: `${((BALL.y + BALL.r * .9) / 1080) * 100}%` }} />
+                    {/* the ball at rest sits behind his boot; the falling one is drawn in front of him */}
+                    <Ball x={BALL.x} y={BALL.y} r={BALL.r} light="tl" k="rball" />
+                    <Img n="cel-hero" eager />
                     <div className={s.drop} data-k="drop"><Ball x={BALL.x} y={BALL.y} r={BALL.r} light="tl" spin="spin" /></div>
                   </Lay>
                   <Lay k="flare" depth={1.4}><Img n="low-flare" eager className={s.flare} /></Lay>
@@ -178,6 +183,8 @@ export default function Site() {
                 </div>
               </div>
             </div>
+
+            <span className={s.sr}>Jwan Sidou drawn as an anime footballer in a blaugrana number 18 kit, foot on the ball.</span>
 
             <div className={s.kUi} data-k="ui" data-at="0">
               <p className={s.kKicker} data-intro>01 — Portfolio · <span lang="ja">ポートフォリオ</span></p>
