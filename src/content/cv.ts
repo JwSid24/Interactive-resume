@@ -6,6 +6,9 @@ export const cv = {
   number: 18,
   role: 'Software engineering student',
   tagline: 'Passion · Software · Communication',
+  // Your photo for the profile card. Put the file in /public (e.g. public/photo.jpg) and set photo: 'photo.jpg'.
+  // While it is empty, the card shows a clean placeholder.
+  photo: '',
   status: 'Open to new opportunities',
   about: [
     'Software engineering student at the University of Southern Denmark, currently in my 5th semester. I thrive at the intersection of people and technology, and I want to get better at translating a client\'s vision into precise, actionable requirements for a development team.',
@@ -17,7 +20,6 @@ export const cv = {
     role: 'Controls the game, provides defensive stability, wins possession and dictates the tempo from midfield.',
   },
   stats: [
-    { label: 'Position', value: 'CDM · Central Defensive Midfielder' },
     { label: 'Studying', value: 'BEng Software Technology, SDU · 5th semester' },
     { label: 'Based in', value: 'Odense, Denmark' },
     { label: 'Status', value: 'Open to new opportunities' },
@@ -32,6 +34,28 @@ export const cv = {
     { group: 'Development', items: ['C#', 'Java', 'PHP', 'Laravel', 'HTML5', 'CSS3'] },
     { group: 'Infrastructure & tools', items: ['PostgreSQL', 'MongoDB', 'Docker', 'Kubernetes', 'Google Cloud', 'Jira', 'Scrum'] },
   ],
+  // The skills as one squad in a 4-2-3-1, line by line from goal to attack. Every name comes from `skills` above;
+  // Jira and Scrum sit on the touchline as coaching staff: they are how the work is organised, not who plays.
+  squad: {
+    name: 'Tech-stack',
+    formation: '4-2-3-1',
+    players: [
+      { pos: 'GK', name: 'PostgreSQL' },
+      { pos: 'LB', name: 'MongoDB' }, { pos: 'CB', name: 'Docker' }, { pos: 'CB', name: 'Kubernetes' }, { pos: 'RB', name: 'Google Cloud' },
+      { pos: 'CDM', name: 'C#' }, { pos: 'CDM', name: 'Java' },
+      { pos: 'LAM', name: 'HTML5' }, { pos: 'CAM', name: 'Laravel' }, { pos: 'RAM', name: 'CSS3' },
+      { pos: 'ST', name: 'PHP' },
+    ],
+    staff: [{ role: 'Coach', name: 'Scrum' }, { role: 'Coach', name: 'Jira' }],
+    staffNote: 'How I organise, structure and manage my development work',
+  },
+  // Qualities in Jwan's own words.
+  qualities: [
+    { title: 'Team player', text: 'I enjoy collaborating with others, contributing to a shared goal and helping a team succeed.' },
+    { title: 'Passionate about technology & football', text: 'I am passionate about using technology to improve, optimise and innovate within football.' },
+    { title: 'Driven & passionate', text: 'I am genuinely passionate about what I do, motivated to learn, improve and take on new challenges.' },
+  ],
+  // Not shown at the moment: the projects section returns with the next major project.
   projects: [
     {
       title: 'This portfolio',

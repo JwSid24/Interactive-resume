@@ -1,5 +1,13 @@
-:root { --ink: #241418; --paper: #F7F3EA; --garnet: #A3123F; --blue: #0B4EA2; --navy: #0E2A52; --gold: #E9B83A; }
+:root {
+  --night: #0A1428; --night-2: #111F3D; --paper: #F5F1E8; --paper-2: #ECE6D8; --ink: #16101A;
+  --garnet: #A3123F; --garnet-2: #D3245F; --blue: #0C4FA3; --blue-2: #3B7BE0; --gold: #E9B83A;
+  --chalk: rgba(255, 255, 255, .72); --chalk-2: rgba(255, 255, 255, .14);
+  --pad: clamp(16px, 4vw, 64px);
+}
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; background: var(--navy); color: #fff; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
-body { overflow: hidden; }
+html { scroll-padding-top: 72px; }
+html, body { margin: 0; background: var(--night); color: #fff; }
+body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
+body.lock { overflow: hidden; }
+img { max-width: 100%; }
 :focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
