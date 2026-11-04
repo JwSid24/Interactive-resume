@@ -4,11 +4,7 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { SplitText } from 'gsap/SplitText';
 
-/* The tech-stack in a 4-2-3-1, as fractions of the field: landscape attacks left to right (portrait attacks up).
-   Order matches cv.squad.players: GK, LB, CB, CB, RB, CDM, CDM, LAM, CAM, RAM, ST. */
-const SQUAD_SPOTS = [[.1, .5], [.26, .13], [.24, .38], [.24, .62], [.26, .87], [.42, .34], [.42, .66], [.6, .16], [.59, .5], [.6, .84], [.8, .5]];
-const STAFF_SPOTS = { land: [[.3, 1.1], [.7, 1.1]], port: [[.2, 1.1], [.8, 1.1]] };
-export const SQUAD_LINKS = [[0, 2], [0, 3], [1, 2], [2, 3], [3, 4], [1, 5], [2, 5], [3, 6], [4, 6], [5, 6], [5, 7], [5, 8], [6, 8], [6, 9], [7, 8], [8, 9], [7, 10], [8, 10], [9, 10]];
+import { SQUAD_SPOTS, STAFF_SPOTS } from './squad';
 
 const PAPER = '#F5F1E8', NIGHT = '#0A1428', CLUB = '#3A0A24';
 const FULL = 'inset(0% 0% 0% 0% round 0px)';
@@ -18,8 +14,11 @@ const FOCUS = [960 / 1920, 935 / 1080];            // where the ball lands on th
 const marks = new Map<string, () => number>();
 const sceneOf = new Map<string, ScrollTrigger>();
 const driven: (() => void)[] = [];      // custom-driven timelines, for the dev settle hook
+// While scenes are still being set up in idle time, this builds every remaining one at once (nav jumps, focus).
+let flushPending: (() => void) | null = null;
 
 export function scrollToScene(id: string, motion: boolean) {
+  flushPending?.();
   const behavior: ScrollBehavior = motion ? 'smooth' : 'auto';
   if (id === 'top') return window.scrollTo({ top: 0, behavior });
   const mark = motion ? marks.get(id) : undefined;
@@ -27,32 +26,68 @@ export function scrollToScene(id: string, motion: boolean) {
   document.getElementById(id)?.scrollIntoView({ behavior });
 }
 
+/* Whenever a pinned ScrollTrigger is created, GSAP schedules a full re-measure of every trigger for the next frame, in
+   case the new pin pushed triggers created earlier further down the page. Scenes here are always created from the top
+   of the page down, so nothing created earlier ever moves, and that re-measure (the costliest step of setting a scene
+   up) is skipped. While a scene is created that request is the only thing scheduled with requestAnimationFrame: GSAP's
+   own ticker keeps its own reference, and a skipped request returns 0, which ScrollTrigger treats as "not scheduled". */
+function withoutQueuedRefresh<T>(fn: () => T): T {
+  const raf = window.requestAnimationFrame;
+  window.requestAnimationFrame = () => 0;
+  try { return fn(); } finally {
+    window.requestAnimationFrame = raf;
+    // What that re-measure also did at its end: give the browser back its own scroll restoration (ScrollTrigger
+    // switches it to "manual" while it sets the scroll position during set-up), so a reload still returns to the
+    // same place in the page.
+    ScrollTrigger.clearScrollMemory(restoration ?? 'auto');
+  }
+}
+let restoration: ScrollRestoration | null = null;      // the page's own setting, read before ScrollTrigger first changes it
+
 export function setupMotion(root: HTMLElement) {
+  restoration ??= history.scrollRestoration;
   gsap.registerPlugin(ScrollTrigger, SplitText);
-  ScrollTrigger.config({ ignoreMobileResize: true });
+  // Every stage and plate is sized by CSS alone (no layout waits on images), so the extra full re-measure that
+  // ScrollTrigger runs on window "load" is skipped; fonts are awaited below, resize still re-measures.
+  ScrollTrigger.config({ ignoreMobileResize: true, autoRefreshEvents: 'visibilitychange,DOMContentLoaded,resize' });
   let mm: gsap.MatchMedia | null = null;
   let dead = false;
   const start = () => {
     if (dead) return;
     mm = gsap.matchMedia(root);
     mm.add({ wide: '(min-width: 800px) and (min-aspect-ratio: 1/1)', narrow: '(max-width: 799px), (max-aspect-ratio: 1/1)' },
-      (c) => build(root, !!c.conditions!.wide));
+      (c) => withoutQueuedRefresh(() => build(root, !!c.conditions!.wide, c)));
   };
   // split text only once the display fonts are in, so line breaks are measured on the real glyphs
   (document.fonts ? document.fonts.ready : Promise.resolve()).then(start);
-  return () => { dead = true; mm?.revert(); marks.clear(); sceneOf.clear(); driven.length = 0; };
+  return () => { dead = true; mm?.revert(); marks.clear(); sceneOf.clear(); driven.length = 0; flushPending = null; };
 }
 
-function build(root: HTMLElement, wide: boolean) {
+function build(root: HTMLElement, wide: boolean, ctx: gsap.Context) {
   const $ = <T extends Element = HTMLElement>(k: string) => root.querySelector(`[data-k="${k}"]`) as unknown as T;
   const $$ = <T extends Element = HTMLElement>(sel: string, scope: ParentNode = root) => Array.from(scope.querySelectorAll(sel)) as T[];
   const off: (() => void)[] = [];
   const on = (t: EventTarget, type: string, fn: EventListener, opts?: AddEventListenerOptions) => { t.addEventListener(type, fn, opts); off.push(() => t.removeEventListener(type, fn)); };
   const fine = matchMedia('(pointer: fine)').matches;
-  const pointer = { x: 0, y: 0 };      // normalised -1..1 from the viewport centre
-  if (fine) on(window, 'pointermove', (e: PointerEvent) => { pointer.x = (e.clientX / innerWidth) * 2 - 1; pointer.y = (e.clientY / innerHeight) * 2 - 1; }, { passive: true });
+  // One pointer listener for the whole page. It only records the position; everything that reacts to the mouse
+  // (hero depth, card tilt, cursor ring, players) runs once per animation frame from `perFrame`, however many
+  // pointer events the browser sends in that frame.
+  const pointer = { x: 0, y: 0, cx: 0, cy: 0, target: null as Element | null };    // x/y normalised -1..1 from the centre
+  const perFrame: (() => void)[] = [];
+  let pointerRaf = 0;
+  const pointerFrame = () => { pointerRaf = 0; for (const f of perFrame) f(); };
+  if (fine) {
+    on(window, 'pointermove', (e: PointerEvent) => {
+      pointer.cx = e.clientX; pointer.cy = e.clientY; pointer.target = e.target as Element;
+      pointer.x = (e.clientX / innerWidth) * 2 - 1; pointer.y = (e.clientY / innerHeight) * 2 - 1;
+      if (!pointerRaf) pointerRaf = requestAnimationFrame(pointerFrame);
+    }, { passive: true });
+    off.push(() => cancelAnimationFrame(pointerRaf));
+  }
 
-  /* ---------------- typography reveals (masked lines) ---------------- */
+  /* ---------------- typography reveals (masked lines) ----------------
+     Created first, for the whole page, before any pin: their positions are measured on the page without pin spacing,
+     exactly as before the set-up was staged. Creating them later, after the pins, would move several of them. */
   $$('[data-split]').forEach((el) => {
     SplitText.create(el, {
       type: 'lines', mask: 'lines', autoSplit: true,
@@ -61,6 +96,16 @@ function build(root: HTMLElement, wide: boolean) {
   });
   $$('[data-fade]').forEach((el) => gsap.from(el, { y: 32, opacity: 0, duration: .9, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 90%', toggleActions: 'play none none reverse' } }));
   $$('[data-stagger]').forEach((el) => gsap.from(el.children, { y: 24, opacity: 0, duration: .7, ease: 'power3.out', stagger: .06, scrollTrigger: { trigger: el, start: 'top 90%', toggleActions: 'play none none reverse' } }));
+  // Elements that scale every frame are promoted to GPU layers (will-change: transform in the CSS), but only while
+  // their scene is on or near the screen, so the GPU keeps a texture instead of re-drawing them at every zoom step
+  // and offscreen scenes hold no GPU memory.
+  const liveLayers = (trigger: Element, el: HTMLElement) => {
+    ScrollTrigger.create({ trigger, start: 'top bottom+=50%', end: 'bottom top-=50%', onToggle: (self) => el.toggleAttribute('data-live', self.isActive) });
+    off.push(() => el.removeAttribute('data-live'));
+  };
+  const announce = () => dispatchEvent(new Event('motion:refresh'));
+  ScrollTrigger.addEventListener('refresh', announce);
+  off.push(() => ScrollTrigger.removeEventListener('refresh', announce));
 
   /* ================= 01 → 02  kick-off: the ball drops in, then the profile card ================= */
   const kick = root.querySelector('[data-kick]') as HTMLElement;
@@ -167,13 +212,16 @@ function build(root: HTMLElement, wide: boolean) {
   // the scrub: one re-targetable tween on a proxy, instead of creating a new tween for every scroll event
   const kPlay = { t: 0 };
   const kTo = gsap.quickTo(kPlay, 't', { duration: .9, ease: 'power3.out', onUpdate: () => { kTl.time(kPlay.t); } });
-  const kDrive = (instant: boolean) => {
+  const kDrive = (instant: boolean, sweep = true) => {
     const target = kTime(scrollY);
     if (!instant) return kTo(target);
-    // A full sweep initialises every phase, so jumping back over one restores its start state. The quickTo tween
-    // is re-targeted in place (start = end = target), never killed: killing it froze the opening.
-    kTl.progress(1); kTl.time(target); kPlay.t = target; kTo(target, target);
+    // A full sweep initialises every phase, so jumping back over one restores its start state. It is skipped only on
+    // the very first measure when the page opens at the top: nothing has rendered yet and every start state is already
+    // in place. The quickTo tween is re-targeted in place (start = end = target), never killed: killing it froze the opening.
+    if (sweep) kTl.progress(1);
+    kTl.time(target); kPlay.t = target; kTo(target, target);
   };
+  let firstMeasure = true;
   const kickSt = ScrollTrigger.create({
     trigger: kick, start: 'top top', end: 'bottom bottom', pin: stage, pinSpacing: false,
     onUpdate: () => kDrive(false),
@@ -183,7 +231,8 @@ function build(root: HTMLElement, wide: boolean) {
       bounds = [s0, sd, s1, s2, end];
       placeOrigin();
       kTl.invalidate();
-      kDrive(true);
+      kDrive(true, !firstMeasure || scrollY > s0);
+      firstMeasure = false;
     },
   });
   const settleKick = () => kDrive(true);
@@ -198,190 +247,204 @@ function build(root: HTMLElement, wide: boolean) {
     const pars = $$('[data-depth]', stage).map((el) => ({ d: +el.dataset.depth!, x: gsap.quickTo(el, 'x', { duration: .9, ease: 'power3' }), y: gsap.quickTo(el, 'y', { duration: .9, ease: 'power3' }) }));
     const nameX = gsap.quickTo($('name'), 'x', { duration: 1, ease: 'power3' });
     const tilt = $('tilt'), rx = gsap.quickTo(tilt, 'rotationX', { duration: .8, ease: 'power3' }), ry = gsap.quickTo(tilt, 'rotationY', { duration: .8, ease: 'power3' });
-    on(window, 'pointermove', () => {
+    perFrame.push(() => {
       if (scrollY > bounds[4]) return;            // the kick-off stage has scrolled away
       pars.forEach((p) => { p.x(-pointer.x * p.d * 26); p.y(-pointer.y * p.d * 14); });
       nameX(pointer.x * 18);
       const kt = kTl.time(), k = Math.max(0, Math.min(1, kt - 1)) * (1 - Math.max(0, Math.min(1, (kt - 3) / .4)));
       rx(-pointer.y * 7 * k); ry(pointer.x * 9 * k);
-    }, { passive: true });
+    });
   }
+  liveLayers(kick, stage);
 
   /* ================= 03  the tech-stack lines up in a 4-2-3-1 ================= */
-  const sk = root.querySelector('#skills') as HTMLElement;
-  const field = $('field'), pitch = $('pitch'), net = $<SVGSVGElement>('net');
-  const toks = $$('[data-tok]', sk).sort((a, b) => +a.dataset.tok! - +b.dataset.tok!);
-  const staff = $$('[data-staff]', sk).sort((a, b) => +a.dataset.staff! - +b.dataset.staff!);
-  const spots = [...SQUAD_SPOTS.map(([x, y]) => (wide ? [x, y] : [y, 1 - x])), ...STAFF_SPOTS[wide ? 'land' : 'port']];
-  const fw = () => field.clientWidth, fh = () => field.clientHeight;
-  const spotX = (i: number) => spots[i][0] * fw(), spotY = (i: number) => spots[i][1] * fh();
-  const scatterX = (i: number) => fw() / 2 + Math.cos(i * 2.4) * Math.max(fw(), fh()) * .8;
-  const scatterY = (i: number) => fh() / 2 + Math.sin(i * 2.4) * Math.max(fw(), fh()) * .55;
-  const line = (n: number) => toks.filter((el) => +el.dataset.line! === n);
-  const idx = (el: HTMLElement) => +el.dataset.tok!;
-  gsap.set([...toks, ...staff], { xPercent: -50, yPercent: -50 });
-  // chalk lines: measured once per layout, drawn by one progress value
-  const draws = $$<SVGPathElement>('[data-draw]', sk).map((p) => ({ p, len: p.getTotalLength() }));
-  draws.forEach(({ p, len }) => gsap.set(p, { strokeDasharray: len, strokeDashoffset: len }));
-  const lines = $$<SVGLineElement>('[data-link]', sk).map((l) => ({ l, ab: l.dataset.link!.split('-').map(Number), len: 0 }));
-  const net$ = { v: 0 };
-  const layoutNet = () => {
-    net.setAttribute('viewBox', `0 0 ${fw()} ${fh()}`);
-    lines.forEach((o) => {
-      const [a, b] = o.ab, x1 = spotX(a), y1 = spotY(a), x2 = spotX(b), y2 = spotY(b);
-      o.l.setAttribute('x1', `${x1}`); o.l.setAttribute('y1', `${y1}`); o.l.setAttribute('x2', `${x2}`); o.l.setAttribute('y2', `${y2}`);
-      o.len = Math.hypot(x2 - x1, y2 - y1);
-      o.l.style.strokeDasharray = `${o.len}`; o.l.style.strokeDashoffset = `${o.len * (1 - net$.v)}`;
-    });
-  };
-  layoutNet();
-  ScrollTrigger.addEventListener('refresh', layoutNet);
-  off.push(() => ScrollTrigger.removeEventListener('refresh', layoutNet));
-  const chalk = { v: 0 };
-  // each line of the formation runs on in turn: keeper and back four, the two holding midfielders, then the attack
-  const runOn = (els: HTMLElement[]) => [els, { x: (i: number) => scatterX(idx(els[i])), y: (i: number) => scatterY(idx(els[i])), scale: .3, opacity: 0, rotation: (i: number) => (idx(els[i]) % 2 ? -50 : 50) },
-    { x: (i: number) => spotX(idx(els[i])), y: (i: number) => spotY(idx(els[i])), scale: 1, opacity: 1, rotation: 0, stagger: .02, duration: .16, ease: 'power3.out' }] as const;
-  const back = [...line(0), ...line(1)];
-  const sTl = gsap.timeline({ defaults: { ease: 'none' }, scrollTrigger: { trigger: sk, start: 'top top', end: () => '+=' + innerHeight * 2.8, pin: $('skstage'), scrub: 1, invalidateOnRefresh: true } });
-  sTl.fromTo(pitch, { rotationX: 0, scale: 1.3, opacity: .35 }, { rotationX: wide ? 54 : 40, scale: 1, opacity: 1, duration: .22 }, 0)
-    .to(chalk, { v: 1, duration: .24, onUpdate: () => draws.forEach(({ p, len }) => { p.style.strokeDashoffset = `${len * (1 - chalk.v)}`; }) }, 0)
-    .fromTo(...runOn(back), .12)
-    .fromTo($('cap0'), { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: .06 }, .14)
-    .fromTo(...runOn(line(2)), .27)
-    .fromTo(...runOn(line(3)), .38)
-    // the coaching staff walk out to the touchline
-    .fromTo(staff, { x: (i) => spotX(11 + i) + (i ? 1 : -1) * fw() * .25, y: (i) => spotY(11 + i), opacity: 0 },
-      { x: (i) => spotX(11 + i), y: (i) => spotY(11 + i), opacity: 1, stagger: .03, duration: .14, ease: 'power2.out' }, .52)
-    .fromTo($('cap1'), { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: .06 }, .58)
-    .to(net$, { v: 1, duration: .16, onUpdate: () => lines.forEach((o) => { o.l.style.strokeDashoffset = `${o.len * (1 - net$.v)}`; }) }, .66)
-    .to(pitch, { rotationX: wide ? 24 : 18, duration: .2 }, .66)
-    .to(field, { scale: .94, duration: .2 }, .66)
-    .to([...toks, ...staff], { y: (i) => spotY(i) - innerHeight * .6, opacity: 0, stagger: .008, duration: .12, ease: 'power2.in' }, .87)
-    .to([$('cap0'), $('cap1'), net], { opacity: 0, duration: .06 }, .87)
-    // a navy curtain: the career timeline starts in the same night colour
-    .fromTo($('skwipe'), { clipPath: 'inset(100% 0% 0% 0%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: .13, ease: 'power2.inOut' }, .87)
-    .fromTo($('marquee'), { xPercent: 0 }, { xPercent: -50, duration: 1 }, 0);
-  const sSt = sTl.scrollTrigger!;
-  sceneOf.set('skills', sSt);
-  marks.set('skills', () => sSt.start + (sSt.end - sSt.start) * .8);
-  // the players step away from the cursor
-  if (fine) {
-    const ins = [...toks, ...staff].map((t) => { const el = t.querySelector('[data-tok-in]') as HTMLElement; return { t, x: gsap.quickTo(el, 'x', { duration: .6, ease: 'power3' }), y: gsap.quickTo(el, 'y', { duration: .6, ease: 'power3' }) }; });
-    const stageSk = $('skstage');
-    let fieldBox = { left: 0, top: 0 };
-    on(stageSk, 'pointerenter', () => { const r = field.getBoundingClientRect(); fieldBox = { left: r.left, top: r.top }; });
-    on(stageSk, 'pointermove', (e: PointerEvent) => {
-      ins.forEach((o) => {
-        // a token's centre is the field's corner plus the position GSAP gave it (xPercent/yPercent centre it)
-        const cx = fieldBox.left + (gsap.getProperty(o.t, 'x') as number), cy = fieldBox.top + (gsap.getProperty(o.t, 'y') as number);
-        const dx = cx - e.clientX, dy = cy - e.clientY, d = Math.hypot(dx, dy) || 1;
-        const push = d < 170 ? (1 - d / 170) * 34 : 0;
-        o.x((dx / d) * push); o.y((dy / d) * push);
+  const buildSkills = () => {
+    const sk = root.querySelector('#skills') as HTMLElement;
+    const field = $('field'), pitch = $('pitch'), net = $<SVGSVGElement>('net');
+    const toks = $$('[data-tok]', sk).sort((a, b) => +a.dataset.tok! - +b.dataset.tok!);
+    const staff = $$('[data-staff]', sk).sort((a, b) => +a.dataset.staff! - +b.dataset.staff!);
+    const spots = [...SQUAD_SPOTS.map(([x, y]) => (wide ? [x, y] : [y, 1 - x])), ...STAFF_SPOTS[wide ? 'land' : 'port']];
+    const fw = () => field.clientWidth, fh = () => field.clientHeight;
+    const spotX = (i: number) => spots[i][0] * fw(), spotY = (i: number) => spots[i][1] * fh();
+    const scatterX = (i: number) => fw() / 2 + Math.cos(i * 2.4) * Math.max(fw(), fh()) * .8;
+    const scatterY = (i: number) => fh() / 2 + Math.sin(i * 2.4) * Math.max(fw(), fh()) * .55;
+    const line = (n: number) => toks.filter((el) => +el.dataset.line! === n);
+    const idx = (el: HTMLElement) => +el.dataset.tok!;
+    gsap.set([...toks, ...staff], { xPercent: -50, yPercent: -50 });
+    // chalk lines: measured once per layout, drawn by one progress value
+    const draws = $$<SVGPathElement>('[data-draw]', sk).map((p) => ({ p, len: p.getTotalLength() }));
+    draws.forEach(({ p, len }) => gsap.set(p, { strokeDasharray: len, strokeDashoffset: len }));
+    const lines = $$<SVGLineElement>('[data-link]', sk).map((l) => ({ l, ab: l.dataset.link!.split('-').map(Number), len: 0 }));
+    const net$ = { v: 0 };
+    const layoutNet = () => {
+      net.setAttribute('viewBox', `0 0 ${fw()} ${fh()}`);
+      lines.forEach((o) => {
+        const [a, b] = o.ab, x1 = spotX(a), y1 = spotY(a), x2 = spotX(b), y2 = spotY(b);
+        o.l.setAttribute('x1', `${x1}`); o.l.setAttribute('y1', `${y1}`); o.l.setAttribute('x2', `${x2}`); o.l.setAttribute('y2', `${y2}`);
+        o.len = Math.hypot(x2 - x1, y2 - y1);
+        o.l.style.strokeDasharray = `${o.len}`; o.l.style.strokeDashoffset = `${o.len * (1 - net$.v)}`;
       });
-    });
-    on(stageSk, 'pointerleave', () => ins.forEach((o) => { o.x(0); o.y(0); }));
-  }
+    };
+    layoutNet();
+    ScrollTrigger.addEventListener('refresh', layoutNet);
+    off.push(() => ScrollTrigger.removeEventListener('refresh', layoutNet));
+    const chalk = { v: 0 };
+    // each line of the formation runs on in turn: keeper and back four, the two holding midfielders, then the attack
+    const runOn = (els: HTMLElement[]) => [els, { x: (i: number) => scatterX(idx(els[i])), y: (i: number) => scatterY(idx(els[i])), scale: .3, opacity: 0, rotation: (i: number) => (idx(els[i]) % 2 ? -50 : 50) },
+      { x: (i: number) => spotX(idx(els[i])), y: (i: number) => spotY(idx(els[i])), scale: 1, opacity: 1, rotation: 0, stagger: .02, duration: .16, ease: 'power3.out' }] as const;
+    const back = [...line(0), ...line(1)];
+    const sTl = gsap.timeline({ defaults: { ease: 'none' }, scrollTrigger: { trigger: sk, start: 'top top', end: () => '+=' + innerHeight * 2.8, pin: $('skstage'), scrub: 1, invalidateOnRefresh: true } });
+    sTl.fromTo(pitch, { rotationX: 0, scale: 1.3, opacity: .35 }, { rotationX: wide ? 54 : 40, scale: 1, opacity: 1, duration: .22 }, 0)
+      .to(chalk, { v: 1, duration: .24, onUpdate: () => draws.forEach(({ p, len }) => { p.style.strokeDashoffset = `${len * (1 - chalk.v)}`; }) }, 0)
+      .fromTo(...runOn(back), .12)
+      .fromTo($('cap0'), { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: .06 }, .14)
+      .fromTo(...runOn(line(2)), .27)
+      .fromTo(...runOn(line(3)), .38)
+      // the coaching staff walk out to the touchline
+      .fromTo(staff, { x: (i) => spotX(11 + i) + (i ? 1 : -1) * fw() * .25, y: (i) => spotY(11 + i), opacity: 0 },
+        { x: (i) => spotX(11 + i), y: (i) => spotY(11 + i), opacity: 1, stagger: .03, duration: .14, ease: 'power2.out' }, .52)
+      .fromTo($('cap1'), { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: .06 }, .58)
+      .to(net$, { v: 1, duration: .16, onUpdate: () => lines.forEach((o) => { o.l.style.strokeDashoffset = `${o.len * (1 - net$.v)}`; }) }, .66)
+      .to(pitch, { rotationX: wide ? 24 : 18, duration: .2 }, .66)
+      .to(field, { scale: .94, duration: .2 }, .66)
+      .to([...toks, ...staff], { y: (i) => spotY(i) - innerHeight * .6, opacity: 0, stagger: .008, duration: .12, ease: 'power2.in' }, .87)
+      .to([$('cap0'), $('cap1'), net], { opacity: 0, duration: .06 }, .87)
+      // a navy curtain: the career timeline starts in the same night colour
+      .fromTo($('skwipe'), { clipPath: 'inset(100% 0% 0% 0%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: .13, ease: 'power2.inOut' }, .87)
+      .fromTo($('marquee'), { xPercent: 0 }, { xPercent: -50, duration: 1 }, 0);
+    const sSt = sTl.scrollTrigger!;
+    sceneOf.set('skills', sSt);
+    marks.set('skills', () => sSt.start + (sSt.end - sSt.start) * .8);
+    // the players step away from the cursor
+    if (fine) {
+      const ins = [...toks, ...staff].map((t) => { const el = t.querySelector('[data-tok-in]') as HTMLElement; return { t, x: gsap.quickTo(el, 'x', { duration: .6, ease: 'power3' }), y: gsap.quickTo(el, 'y', { duration: .6, ease: 'power3' }) }; });
+      const stageSk = $('skstage');
+      let fieldBox = { left: 0, top: 0 }, over = false;
+      on(stageSk, 'pointerenter', () => { const r = field.getBoundingClientRect(); fieldBox = { left: r.left, top: r.top }; over = true; });
+      perFrame.push(() => {
+        if (!over) return;
+        ins.forEach((o) => {
+          // a token's centre is the field's corner plus the position GSAP gave it (xPercent/yPercent centre it)
+          const cx = fieldBox.left + (gsap.getProperty(o.t, 'x') as number), cy = fieldBox.top + (gsap.getProperty(o.t, 'y') as number);
+          const dx = cx - pointer.cx, dy = cy - pointer.cy, d = Math.hypot(dx, dy) || 1;
+          const push = d < 170 ? (1 - d / 170) * 34 : 0;
+          o.x((dx / d) * push); o.y((dy / d) * push);
+        });
+      });
+      on(stageSk, 'pointerleave', () => { over = false; ins.forEach((o) => { o.x(0); o.y(0); }); });
+    }
+    liveLayers(sk, $('skstage'));
+  };
 
   /* ================= 04  season by season, from today back to the first job ================= */
-  const ca = root.querySelector('#career') as HTMLElement;
-  const track = $('track'), year = $('year'), ball = $('caball');
-  const seasons = $$('[data-season]', ca);
-  const dist = () => Math.max(0, track.scrollWidth - innerWidth);
-  let lastYear = year.textContent;
-  let seasonX: number[] = [], lineW = 0, ballR = 18;
-  const measureCareer = () => { seasonX = seasons.map((s) => s.offsetLeft); ballR = ball.clientWidth / 2; lineW = (ball.parentElement as HTMLElement).clientWidth - ball.clientWidth; };
-  measureCareer();
-  ScrollTrigger.addEventListener('refresh', measureCareer);
-  off.push(() => ScrollTrigger.removeEventListener('refresh', measureCareer));
-  const h = gsap.to(track, {
-    x: () => -dist(), ease: 'none',
-    scrollTrigger: { trigger: ca, start: 'top top', end: () => '+=' + dist(), pin: $('castage'), scrub: 1, invalidateOnRefresh: true },
-    onUpdate() {
-      const x = gsap.getProperty(track, 'x') as number;
-      const bx = this.progress() * lineW;
-      gsap.set(ball, { x: bx, rotation: (bx / ballR) * 57.3 });
-      let y = seasons[0].dataset.year;
-      seasons.forEach((s, i) => { if (seasonX[i] + x < innerWidth * .6) y = s.dataset.year; });
-      if (y !== lastYear) { lastYear = y; year.textContent = y; gsap.fromTo(year, { yPercent: 18, opacity: .2 }, { yPercent: 0, opacity: 1, duration: .5, ease: 'power3.out' }); }
-    },
-  });
-  seasons.forEach((li) => gsap.from(li.querySelector('[data-season-in]'), { y: 90, rotation: 4, opacity: 0, duration: 1, ease: 'expo.out', scrollTrigger: { trigger: li, containerAnimation: h, start: 'left 92%', toggleActions: 'play none none reverse' } }));
-  gsap.to($('castage'), { backgroundColor: CLUB, ease: 'none', scrollTrigger: { trigger: $('caend'), containerAnimation: h, start: 'left 70%', end: 'right right', scrub: true } });
-  const cSt = h.scrollTrigger!;
-  sceneOf.set('career', cSt);
-  marks.set('career', () => cSt.start);
-  // keyboard users: bring a focused season into view, since the track moves sideways
-  on(track, 'focusin', (e: FocusEvent) => {
-    const li = (e.target as HTMLElement).closest('[data-season]') as HTMLElement | null;
-    if (!li || !dist()) return;
-    const p = Math.min(1, Math.max(0, (li.offsetLeft - innerWidth * .3) / dist()));
-    window.scrollTo({ top: cSt.start + p * (cSt.end - cSt.start), behavior: 'instant' as ScrollBehavior });
-  });
+  const buildCareer = () => {
+    const ca = root.querySelector('#career') as HTMLElement;
+    const track = $('track'), year = $('year'), ball = $('caball');
+    const seasons = $$('[data-season]', ca);
+    const dist = () => Math.max(0, track.scrollWidth - innerWidth);
+    let lastYear = year.textContent;
+    let seasonX: number[] = [], lineW = 0, ballR = 18;
+    const measureCareer = () => { seasonX = seasons.map((s) => s.offsetLeft); ballR = ball.clientWidth / 2; lineW = (ball.parentElement as HTMLElement).clientWidth - ball.clientWidth; };
+    measureCareer();
+    ScrollTrigger.addEventListener('refresh', measureCareer);
+    off.push(() => ScrollTrigger.removeEventListener('refresh', measureCareer));
+    const h = gsap.to(track, {
+      x: () => -dist(), ease: 'none',
+      scrollTrigger: { trigger: ca, start: 'top top', end: () => '+=' + dist(), pin: $('castage'), scrub: 1, invalidateOnRefresh: true },
+      onUpdate() {
+        const x = gsap.getProperty(track, 'x') as number;
+        const bx = this.progress() * lineW;
+        gsap.set(ball, { x: bx, rotation: (bx / ballR) * 57.3 });
+        let y = seasons[0].dataset.year;
+        seasons.forEach((s, i) => { if (seasonX[i] + x < innerWidth * .6) y = s.dataset.year; });
+        if (y !== lastYear) { lastYear = y; year.textContent = y; gsap.fromTo(year, { yPercent: 18, opacity: .2 }, { yPercent: 0, opacity: 1, duration: .5, ease: 'power3.out' }); }
+      },
+    });
+    seasons.forEach((li) => gsap.from(li.querySelector('[data-season-in]'), { y: 90, rotation: 4, opacity: 0, duration: 1, ease: 'expo.out', scrollTrigger: { trigger: li, containerAnimation: h, start: 'left 92%', toggleActions: 'play none none reverse' } }));
+    gsap.to($('castage'), { backgroundColor: CLUB, ease: 'none', scrollTrigger: { trigger: $('caend'), containerAnimation: h, start: 'left 70%', end: 'right right', scrub: true } });
+    const cSt = h.scrollTrigger!;
+    sceneOf.set('career', cSt);
+    marks.set('career', () => cSt.start);
+    // keyboard users: bring a focused season into view, since the track moves sideways
+    on(track, 'focusin', (e: FocusEvent) => {
+      const li = (e.target as HTMLElement).closest('[data-season]') as HTMLElement | null;
+      if (!li || !dist()) return;
+      const p = Math.min(1, Math.max(0, (li.offsetLeft - innerWidth * .3) / dist()));
+      window.scrollTo({ top: cSt.start + p * (cSt.end - cSt.start), behavior: 'instant' as ScrollBehavior });
+    });
+  };
 
   /* ================= 05  "Why Jwan Sidou?": zoom through the letters into the stadium ================= */
-  const fo = root.querySelector('#why') as HTMLElement;
-  const mask = $$<SVGSVGElement>('[data-mask]', fo).find((m) => getComputedStyle(m).display !== 'none')!;
-  const textLines = $$<SVGTextElement>('[data-line]', mask);
-  const letters = mask.querySelector('[data-letters]') as SVGTextElement;    // the last line, "SIDOU?"
-  const { width: vbW, height: vbH } = mask.viewBox.baseVal;
-  // fit the lettering to the frame: as large as the widest line allows, stacked and centred above the subtitle
-  let fontPx = 300;
-  const fitLetters = () => {
-    textLines.forEach((l) => l.setAttribute('font-size', '300'));
-    const widest = Math.max(...textLines.map((l) => l.getComputedTextLength()));
-    const n = textLines.length;
-    fontPx = Math.min(300 * (vbW * .92) / widest, (vbH * .66) / (n * .82));
-    const block = n * .72 * fontPx + (n - 1) * .1 * fontPx, top = (vbH - block) / 2 - vbH * .07;
-    textLines.forEach((l, i) => { l.setAttribute('font-size', `${fontPx}`); l.setAttribute('y', `${top + .72 * fontPx + i * .82 * fontPx}`); });
+  const buildWhy = () => {
+    const fo = root.querySelector('#why') as HTMLElement;
+    const mask = $$<SVGSVGElement>('[data-mask]', fo).find((m) => getComputedStyle(m).display !== 'none')!;
+    const textLines = $$<SVGTextElement>('[data-line]', mask);
+    const letters = mask.querySelector('[data-letters]') as SVGTextElement;    // the last line, "SIDOU?"
+    const { width: vbW, height: vbH } = mask.viewBox.baseVal;
+    // fit the lettering to the frame: as large as the widest line allows, stacked and centred above the subtitle
+    let fontPx = 300;
+    const fitLetters = () => {
+      textLines.forEach((l) => l.setAttribute('font-size', '300'));
+      const widest = Math.max(...textLines.map((l) => l.getComputedTextLength()));
+      const n = textLines.length;
+      fontPx = Math.min(300 * (vbW * .92) / widest, (vbH * .66) / (n * .82));
+      const block = n * .72 * fontPx + (n - 1) * .1 * fontPx, top = (vbH - block) / 2 - vbH * .07;
+      textLines.forEach((l, i) => { l.setAttribute('font-size', `${fontPx}`); l.setAttribute('y', `${top + .72 * fontPx + i * .82 * fontPx}`); });
+    };
+    fitLetters();
+    // the camera aims at the stem of the I in SIDOU, mapped from viewBox units to the screen (preserveAspectRatio: meet)
+    // measured on the stage, not the window: the scrollbar would put the aim off the stem
+    const foStage = $('fostage'), sw = () => foStage.clientWidth, sh = () => foStage.clientHeight;
+    const scaleK = () => Math.min(sw() / vbW, sh() / vbH);
+    const aim = () => {
+      const ext = letters.getExtentOfChar(1), ty = +letters.getAttribute('y')!;
+      const k = scaleK(), ox = (sw() - vbW * k) / 2, oy = (sh() - vbH * k) / 2;
+      return { x: ox + (ext.x + ext.width / 2) * k, y: oy + (ty - fontPx * .36) * k };
+    };
+    const dOrigin = () => `${aim().x}px ${aim().y}px`;
+    const fTl = gsap.timeline({ defaults: { ease: 'none' }, scrollTrigger: { trigger: fo, start: 'top top', end: () => '+=' + innerHeight * 2.3, pin: $('fostage'), scrub: 1, invalidateOnRefresh: true } });
+    // Chrome caps SVG text at 10,000px on screen and shrinks the glyphs beyond that, so the zoom stops just under
+    // the cap for this screen size and the garnet fades away to finish the move through the letter
+    const maxZoom = () => Math.max(4, 9000 / (fontPx * scaleK()));
+    // while it zooms, the camera also pans so the stem ends up centred on screen
+    fTl.fromTo(mask, { scale: 1, x: 0, y: 0, transformOrigin: dOrigin }, { scale: maxZoom, x: () => sw() / 2 - aim().x, y: () => sh() / 2 - aim().y, duration: .34, ease: 'power3.in' }, .04)
+      .fromTo(mask, { autoAlpha: 1 }, { autoAlpha: 0, duration: .13, ease: 'power1.in' }, .23)
+      .to($('fointro'), { opacity: 0, y: -50, duration: .08 }, .02)
+      .fromTo($('fobg'), { scale: 1.4 }, { scale: 1.05, duration: .42 }, 0)
+      .fromTo($('foscrim'), { opacity: 0 }, { opacity: .74, duration: .08 }, .36)
+      .fromTo([$('forole'), $('foplay')], { y: 40, opacity: 0 }, { y: 0, opacity: 1, stagger: .025, duration: .06 }, .4)
+      .fromTo($$('[data-pillar]', fo), { y: 70, opacity: 0, clipPath: 'inset(0% 0% 100% 0%)' }, { y: 0, opacity: 1, clipPath: 'inset(0% 0% 0% 0%)', stagger: .03, duration: .08 }, .45)
+      // Tiger Shot: one quick, punchy beat, then straight on to the contact scene
+      .to($('fobody'), { opacity: 0, y: -60, duration: .05 }, .68)
+      .fromTo($('fospeed'), { opacity: 0, xPercent: 12 }, { opacity: .9, xPercent: -12, duration: .2 }, .68)
+      .fromTo($('fomove'), { rotationY: -110, scale: .5, opacity: 0 }, { rotationY: 0, scale: 1, opacity: 1, duration: .09, ease: 'back.out(1.4)' }, .7)
+      .fromTo($('moveball'), { rotation: 0 }, { rotation: 540, duration: .2, ease: 'power2.out' }, .7)
+      .to($('fonight'), { opacity: 1, duration: .08 }, .86);
+    const fSt = fTl.scrollTrigger!;
+    sceneOf.set('why', fSt);
+    marks.set('why', () => fSt.start);
+    liveLayers(fo, $('fostage'));
   };
-  fitLetters();
-  // the camera aims at the stem of the I in SIDOU, mapped from viewBox units to the screen (preserveAspectRatio: meet)
-  // measured on the stage, not the window: the scrollbar would put the aim off the stem
-  const foStage = $('fostage'), sw = () => foStage.clientWidth, sh = () => foStage.clientHeight;
-  const scaleK = () => Math.min(sw() / vbW, sh() / vbH);
-  const aim = () => {
-    const ext = letters.getExtentOfChar(1), ty = +letters.getAttribute('y')!;
-    const k = scaleK(), ox = (sw() - vbW * k) / 2, oy = (sh() - vbH * k) / 2;
-    return { x: ox + (ext.x + ext.width / 2) * k, y: oy + (ty - fontPx * .36) * k };
-  };
-  const dOrigin = () => `${aim().x}px ${aim().y}px`;
-  const fTl = gsap.timeline({ defaults: { ease: 'none' }, scrollTrigger: { trigger: fo, start: 'top top', end: () => '+=' + innerHeight * 2.3, pin: $('fostage'), scrub: 1, invalidateOnRefresh: true } });
-  // Chrome caps SVG text at 10,000px on screen and shrinks the glyphs beyond that, so the zoom stops just under
-  // the cap for this screen size and the garnet fades away to finish the move through the letter
-  const maxZoom = () => Math.max(4, 9000 / (fontPx * scaleK()));
-  // while it zooms, the camera also pans so the stem ends up centred on screen
-  fTl.fromTo(mask, { scale: 1, x: 0, y: 0, transformOrigin: dOrigin }, { scale: maxZoom, x: () => sw() / 2 - aim().x, y: () => sh() / 2 - aim().y, duration: .34, ease: 'power3.in' }, .04)
-    .fromTo(mask, { autoAlpha: 1 }, { autoAlpha: 0, duration: .13, ease: 'power1.in' }, .23)
-    .to($('fointro'), { opacity: 0, y: -50, duration: .08 }, .02)
-    .fromTo($('fobg'), { scale: 1.4 }, { scale: 1.05, duration: .42 }, 0)
-    .fromTo($('foscrim'), { opacity: 0 }, { opacity: .74, duration: .08 }, .36)
-    .fromTo([$('forole'), $('foplay')], { y: 40, opacity: 0 }, { y: 0, opacity: 1, stagger: .025, duration: .06 }, .4)
-    .fromTo($$('[data-pillar]', fo), { y: 70, opacity: 0, clipPath: 'inset(0% 0% 100% 0%)' }, { y: 0, opacity: 1, clipPath: 'inset(0% 0% 0% 0%)', stagger: .03, duration: .08 }, .45)
-    // Tiger Shot: one quick, punchy beat, then straight on to the contact scene
-    .to($('fobody'), { opacity: 0, y: -60, duration: .05 }, .68)
-    .fromTo($('fospeed'), { opacity: 0, xPercent: 12 }, { opacity: .9, xPercent: -12, duration: .2 }, .68)
-    .fromTo($('fomove'), { rotationY: -110, scale: .5, opacity: 0 }, { rotationY: 0, scale: 1, opacity: 1, duration: .09, ease: 'back.out(1.4)' }, .7)
-    .fromTo($('moveball'), { rotation: 0 }, { rotation: 540, duration: .2, ease: 'power2.out' }, .7)
-    .to($('fonight'), { opacity: 1, duration: .08 }, .86);
-  const fSt = fTl.scrollTrigger!;
-  sceneOf.set('why', fSt);
-  marks.set('why', () => fSt.start);
 
   /* ================= 06  full time: the ball opens the last page ================= */
-  const co = root.querySelector('#contact') as HTMLElement;
-  const coTitle = SplitText.create($('cotitle'), { type: 'words,chars', mask: 'words' });
-  const oTl = gsap.timeline({ defaults: { ease: 'none' }, scrollTrigger: { trigger: co, start: 'top top', end: () => '+=' + innerHeight * 1.5, pin: $('costage'), scrub: 1, invalidateOnRefresh: true } });
-  oTl.fromTo($('coball'), { x: () => -innerWidth * .65, rotation: -620, scale: .55 }, { x: 0, rotation: 0, scale: 1, duration: .3, ease: 'power2.out' }, 0)
-    .fromTo($('copaper'), { clipPath: 'circle(0% at 50% 50%)' }, { clipPath: 'circle(150% at 50% 50%)', duration: .32, ease: 'power2.in' }, .3)
-    .to($('coball'), { scale: 7, opacity: 0, duration: .26 }, .32)
-    .from(coTitle.chars, { yPercent: 115, stagger: .012, duration: .14, ease: 'power3.out' }, .56)
-    .from($$('[data-co]', co), { y: 44, opacity: 0, stagger: .04, duration: .12 }, .64);
-  const oSt = oTl.scrollTrigger!;
-  sceneOf.set('contact', oSt);
-  marks.set('contact', () => oSt.end);
+  const buildContact = () => {
+    const co = root.querySelector('#contact') as HTMLElement;
+    const coTitle = SplitText.create($('cotitle'), { type: 'words,chars', mask: 'words' });
+    const oTl = gsap.timeline({ defaults: { ease: 'none' }, scrollTrigger: { trigger: co, start: 'top top', end: () => '+=' + innerHeight * 1.5, pin: $('costage'), scrub: 1, invalidateOnRefresh: true } });
+    oTl.fromTo($('coball'), { x: () => -innerWidth * .65, rotation: -620, scale: .55 }, { x: 0, rotation: 0, scale: 1, duration: .3, ease: 'power2.out' }, 0)
+      .fromTo($('copaper'), { clipPath: 'circle(0% at 50% 50%)' }, { clipPath: 'circle(150% at 50% 50%)', duration: .32, ease: 'power2.in' }, .3)
+      .to($('coball'), { scale: 7, opacity: 0, duration: .26 }, .32)
+      .from(coTitle.chars, { yPercent: 115, stagger: .012, duration: .14, ease: 'power3.out' }, .56)
+      .from($$('[data-co]', co), { y: 44, opacity: 0, stagger: .04, duration: .12 }, .64);
+    const oSt = oTl.scrollTrigger!;
+    sceneOf.set('contact', oSt);
+    marks.set('contact', () => oSt.end);
+    liveLayers(co, $('costage'));
+  };
 
   /* ---------------- focus: a focused element inside a pinned scene scrolls its moment into view ---------------- */
   on(root, 'focusin', (e: FocusEvent) => {
+    flushPending?.();
     const at = (e.target as HTMLElement).closest('[data-at]') as HTMLElement | null;
     const sec = at?.closest('section[id]') as HTMLElement | null;
     const st = sec && sceneOf.get(sec.id);
@@ -396,13 +459,14 @@ function build(root: HTMLElement, wide: boolean) {
     const cur = root.querySelector('[data-cursor]') as HTMLElement, lab = cur.querySelector('[data-cursor-label]') as HTMLElement;
     const cx = gsap.quickTo(cur, 'x', { duration: .45, ease: 'power3' }), cy = gsap.quickTo(cur, 'y', { duration: .45, ease: 'power3' });
     cur.dataset.live = '1';
-    on(window, 'pointermove', (e: PointerEvent) => {
-      cx(e.clientX); cy(e.clientY);
-      const t = (e.target as Element).closest?.('a, button, summary, [data-cursor-text]');
+    perFrame.push(() => {
+      cx(pointer.cx); cy(pointer.cy);
+      const t = pointer.target?.closest?.('a, button, summary, [data-cursor-text]');
       const text = t?.getAttribute('data-cursor-text') ?? '';
-      cur.dataset.state = t ? (text ? 'text' : 'link') : '';
+      const state = t ? (text ? 'text' : 'link') : '';
+      if (cur.dataset.state !== state) cur.dataset.state = state;
       if (lab.textContent !== text) lab.textContent = text;
-    }, { passive: true });
+    });
     on(document.documentElement, 'pointerleave', () => { cur.dataset.state = 'hidden'; });
     off.push(() => { delete cur.dataset.live; });
     $$('[data-magnetic]').forEach((el) => {
@@ -412,19 +476,61 @@ function build(root: HTMLElement, wide: boolean) {
     });
   }
 
-  // Elements that scale every frame are promoted to GPU layers (will-change: transform in the CSS), but only while
-  // their scene is on or near the screen, so the GPU keeps a texture instead of re-drawing them at every zoom step
-  // and offscreen scenes hold no GPU memory.
-  const live: [Element, HTMLElement][] = [[kick, stage], [sk, $('skstage')], [fo, $('fostage')], [co, $('costage')]];
-  live.forEach(([trigger, el]) => ScrollTrigger.create({ trigger, start: 'top bottom+=50%', end: 'bottom top-=50%', onToggle: (self) => el.toggleAttribute('data-live', self.isActive) }));
-  off.push(() => live.forEach(([, el]) => el.removeAttribute('data-live')));
-  const announce = () => dispatchEvent(new Event('motion:refresh'));
-  ScrollTrigger.addEventListener('refresh', announce);
-  off.push(() => ScrollTrigger.removeEventListener('refresh', announce));
-  ScrollTrigger.refresh();
+  /* ---------------- staged set-up ----------------
+     The opening above (and every text reveal) is built straight away. The scenes below it are built one at a time, in page order, when the
+     browser is idle (or after a short timeout where it never is), always before they can be seen: a scroll guard
+     builds any scene that is within 2.5 screens of the viewport immediately, and nav jumps or keyboard focus build
+     everything first. Each builder runs inside the matchMedia context, so a breakpoint change still reverts it all.
+     Building in page order keeps every ScrollTrigger's positions exact: a new pin only adds space below itself. */
+  const sk = root.querySelector('#skills') as HTMLElement, ca = root.querySelector('#career') as HTMLElement;
+  const fo = root.querySelector('#why') as HTMLElement, co = root.querySelector('#contact') as HTMLElement;
+  const scenes: { el: Element; build: () => void }[] = [
+    { el: sk, build: buildSkills }, { el: ca, build: buildCareer }, { el: fo, build: buildWhy }, { el: co, build: buildContact },
+  ];
+  let next = 0, nextAt = Infinity, nextTop = Infinity, idle = 0, stopped = false, late = false;
+  const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+  const cic = (window as unknown as { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback;
+  // where the next scene must be ready: 2.5 screens before its top reaches the viewport (positions only move down
+  // as earlier scenes add their pins, so this is measured again after every build and stays on the safe side)
+  const measureNext = () => {
+    nextTop = next < scenes.length ? scenes[next].el.getBoundingClientRect().top + scrollY : Infinity;
+    nextAt = nextTop - innerHeight * 3.5;
+  };
+  const buildNext = () => {
+    // A scene that is already on screen when it is built (the browser jumped there, e.g. restoring the scroll position
+    // on reload) may have its pin active, so its triggers are measured once more with every pin released, exactly as
+    // the single full re-measure did before the set-up was staged.
+    if (scrollY + innerHeight > nextTop) late = true;
+    const s = scenes[next++];
+    withoutQueuedRefresh(() => ctx.add(s.build));
+    announce(); measureNext();
+    if (next >= scenes.length) gsap.ticker.remove(guard);
+  };
+  const settle = () => { if (late) { late = false; ScrollTrigger.refresh(); } };
+  const buildAll = () => { while (next < scenes.length) buildNext(); settle(); };
+  const guard = () => { while (next < scenes.length && scrollY >= nextAt) buildNext(); settle(); };
+  const schedule = () => {
+    if (stopped || next >= scenes.length) return;
+    const step = () => { if (stopped) return; guard(); if (next < scenes.length) buildNext(); settle(); schedule(); };
+    idle = ric ? ric(step, { timeout: 400 }) : (setTimeout(step, 60) as unknown as number);
+  };
+  measureNext();
+  // On a reload or back/forward visit the browser may restore a scroll position anywhere in the page, during its own
+  // layout step where no script runs first, so every scene is built straight away there, as before staging.
+  const nav = performance.getEntriesByType?.('navigation')[0] as PerformanceNavigationTiming | undefined;
+  if ((nav?.type === 'reload' || nav?.type === 'back_forward') && (restoration ?? history.scrollRestoration) === 'auto') buildAll();
+  guard();
+  schedule();
+  // checked on every scroll event and again first thing in every animation frame (a jump made by the browser itself,
+  // such as scroll restoration, can land before its scroll event); one comparison, no layout read
+  on(window, 'scroll', guard, { passive: true });
+  if (next < scenes.length) gsap.ticker.add(guard, false, true);
+  flushPending = buildAll;
+  off.push(() => { stopped = true; gsap.ticker.remove(guard); if (ric && cic) cic(idle); else clearTimeout(idle); if (flushPending === buildAll) flushPending = null; });
   // dev only: lets browser tests jump the scrubbed timelines to where the scroll position says they should be
   if (process.env.NODE_ENV !== 'production') (window as unknown as { __ST: typeof ScrollTrigger }).__ST = ScrollTrigger;
   if (process.env.NODE_ENV !== 'production') (window as unknown as { __settle: () => void }).__settle = () => {
+    flushPending?.();
     ScrollTrigger.update();
     driven.forEach((f) => f());
     ScrollTrigger.getAll().forEach((st) => { const tw = st.getTween && st.getTween(); if (tw) tw.progress(1); const a = st.animation; if (a && st.progress > 0) a.progress(st.vars.scrub ? st.progress : 1); });

@@ -4,6 +4,8 @@
    ===================================================================================================== */
 /* GPU layers for what scales every frame, switched on per scene by motion.ts (data-live) */
 .root [data-live] :is([data-k="sky"], [data-k="ground"], [data-k="focus"], [data-k="flare"], [data-k="back"], [data-k="front"], [data-k="photoin"], [data-k="fobg"], [data-mask], [data-k="pitch"], [data-k="coball"]) { will-change: transform; }
+/* the opening's plates also slide with the mouse inside their scaling layer: their own layer keeps that a move, not a re-draw */
+.root [data-k="stage"][data-live] [data-depth] { will-change: transform; }
 .root { --display: var(--f-display), 'Arial Narrow', Impact, sans-serif; --serif: var(--f-serif), Georgia, serif; --mono: var(--f-mono), ui-monospace, monospace;
   --club: #3A0A24; --green: #2ECC71; overflow-x: clip; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
