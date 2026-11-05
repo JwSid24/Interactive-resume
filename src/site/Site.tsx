@@ -2,7 +2,7 @@
 // Motion-led portfolio: one continuous camera move through six pinned scenes. Every scene ends in the colour and
 // framing the next one starts with, so the page reads as a single shot. The DOM below is the readable, static
 // layout (used for reduced motion); motion.ts layers the scroll choreography on top when motion is allowed.
-import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { cv, Entry, StudyProject } from '../content/cv';
 import manifest from '../../public/assets/opening/manifest.json';
 import { SQUAD_LINKS } from './squad';
@@ -119,7 +119,7 @@ function Project({ p, i, n }: { p: StudyProject; i: number; n: number }) {
                 <h4 className={`${s.projH} ${s.stepsH}`}>{p.list.heading}</h4>
                 <ol className={s.steps}>{items}</ol>
                 {p.doc && (
-                  <figure className={s.projDoc} data-contrib>
+                  <figure className={s.projDoc} data-contrib style={{ '--ar': p.doc.width / p.doc.height } as CSSProperties}>
                     <figcaption><span>{p.doc.caption}</span><a href={`${BASE}/${p.doc.src}`} target="_blank" rel="noopener noreferrer">Open full size ↗</a></figcaption>
                     <img src={`${BASE}/${p.doc.src}`} alt={p.doc.alt} width={p.doc.width} height={p.doc.height} loading="lazy" decoding="async" />
                   </figure>
@@ -204,7 +204,7 @@ const Pitch = memo(function Pitch({ go, copy, copied }: { go: (id: string) => vo
             {/* the profile card's photo: set cv.photo to show your picture; until then a clean empty slot */}
             <div className={s.kPhoto} data-k="photo">
               <div className={s.kPhotoIn} data-k="photoin">
-                {cv.photo ? <img src={`${BASE}/${cv.photo}`} alt="Jwan Sidou" /> : null}
+                {cv.photo ? <img src={`${BASE}/${cv.photo}`} alt="Jwan Sidou" style={{ objectPosition: cv.photoPosition }} /> : null}
               </div>
             </div>
           </div>
@@ -242,7 +242,7 @@ const Pitch = memo(function Pitch({ go, copy, copied }: { go: (id: string) => vo
             {cv.stats.map((f) => <div key={f.label}><dt>{f.label}</dt><dd>{f.value}</dd></div>)}
           </dl>
           <h3 className={s.small} data-fade>Languages</h3>
-          <ul className={s.langs} data-stagger>{cv.languages.map((l) => <li key={l.name}><b>{l.name}</b><span>{l.level}</span></li>)}</ul>
+          <ul className={s.langs} data-stagger>{cv.languages.map((l) => <li key={l.name} data-native={l.level === 'Native language' || undefined}><b>{l.name}</b><span>{l.level}</span></li>)}</ul>
         </div>
       </section>
     </div>
@@ -301,7 +301,7 @@ const Pitch = memo(function Pitch({ go, copy, copied }: { go: (id: string) => vo
         <div className={s.caLine} aria-hidden><i data-k="caball"><Img n="ball-pattern" /></i></div>
         <ol className={s.caTrack} data-k="track">
           {SEASONS.map((e) => (
-            <li key={e.title + e.place + e.when} className={s.caItem} data-season data-year={e.when.split('–')[0].trim().split(' ')[1]} data-active={ongoing(e) || undefined}>
+            <li key={e.title + e.place + e.when} className={s.caItem} data-season data-year={e.when.split('–')[0].trim().split(' ')[1]} data-active={ongoing(e) || undefined} data-minor={e.minor || undefined}>
               <div className={s.caCard} data-season-in>
                 <p className={s.caMeta}><span data-kind={e.kind}>{e.kind}</span>{e.when}{ongoing(e) && <b className={s.caNow}><i aria-hidden />Ongoing</b>}</p>
                 <h3 className={s.caRole}>{e.title}</h3>
@@ -378,13 +378,15 @@ const Pitch = memo(function Pitch({ go, copy, copied }: { go: (id: string) => vo
             <h2 id="contact-title" className={s.huge} data-k="cotitle">Let&apos;s <em>talk.</em></h2>
             <p className={s.body} data-co>{cv.status}. The quickest way to reach me is by email.</p>
             <div className={s.mailRow} data-co>
-              <a className={s.mail} href={email.href} data-magnetic>{email.value}</a>
+              <a className={s.mail} href={email.href} aria-label={`Send an email to ${email.value}`} data-magnetic>{email.value}</a>
               <button className={s.copy} onClick={copy}>{copied ? 'Copied ✓' : 'Copy email'}</button>
               <span className={s.sr} aria-live="polite">{copied ? 'Email address copied' : ''}</span>
             </div>
             <ul className={s.contactList} data-co>
               {cv.links.filter((l) => l.label !== 'Email').map((l) => (
-                <li key={l.label}><span>{l.label}</span>{l.href ? <a href={l.href} target="_blank" rel="noreferrer">{l.value} ↗</a> : <b>{l.value}</b>}</li>
+                <li key={l.label}><span>{l.label}</span>{l.href
+                  ? <a href={l.href} target="_blank" rel="noopener noreferrer" aria-label={`${l.label}: ${l.value} (opens in a new tab)`}>{l.value} ↗</a>
+                  : <b>{l.value}</b>}</li>
               ))}
             </ul>
           </div>

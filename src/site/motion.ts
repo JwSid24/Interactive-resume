@@ -52,6 +52,16 @@ export function setupMotion(root: HTMLElement) {
   ScrollTrigger.config({ ignoreMobileResize: true, autoRefreshEvents: 'visibilitychange,DOMContentLoaded,resize' });
   let mm: gsap.MatchMedia | null = null;
   let dead = false;
+  // ignoreMobileResize keeps the phone's URL bar from re-measuring the page, but on touch devices ScrollTrigger then
+  // compares a new width only with the width at page load: narrowing the window and widening it back to that width
+  // (split screen, a foldable, a touchscreen laptop window) skipped the re-measure, and every scene kept the narrower
+  // measurements. So: re-measure whenever the width differs from the last measure. Runs after ScrollTrigger's own
+  // resize handling (200ms), so a width it already re-measured is not measured twice; height-only changes stay ignored.
+  let measuredW = innerWidth, widthCheck = 0;
+  const remember = () => { measuredW = innerWidth; };
+  const onResize = () => { clearTimeout(widthCheck); widthCheck = window.setTimeout(() => { if (!dead && innerWidth !== measuredW) ScrollTrigger.refresh(); }, 300); };
+  ScrollTrigger.addEventListener('refresh', remember);
+  addEventListener('resize', onResize);
   const start = () => {
     if (dead) return;
     mm = gsap.matchMedia(root);
@@ -60,7 +70,10 @@ export function setupMotion(root: HTMLElement) {
   };
   // split text only once the display fonts are in, so line breaks are measured on the real glyphs
   (document.fonts ? document.fonts.ready : Promise.resolve()).then(start);
-  return () => { dead = true; mm?.revert(); marks.clear(); sceneOf.clear(); driven.length = 0; flushPending = null; };
+  return () => {
+    dead = true; clearTimeout(widthCheck); removeEventListener('resize', onResize); ScrollTrigger.removeEventListener('refresh', remember);
+    mm?.revert(); marks.clear(); sceneOf.clear(); driven.length = 0; flushPending = null;
+  };
 }
 
 function build(root: HTMLElement, wide: boolean, ctx: gsap.Context) {
@@ -396,10 +409,14 @@ function build(root: HTMLElement, wide: boolean, ctx: gsap.Context) {
     // measured on the stage, not the window: the scrollbar would put the aim off the stem
     const foStage = $('fostage'), sw = () => foStage.clientWidth, sh = () => foStage.clientHeight;
     const scaleK = () => Math.min(sw() / vbW, sh() / vbH);
+    // the last aim is kept: while a rotation swaps the portrait and landscape lettering, the old one is already hidden
+    // (no glyphs to measure) when ScrollTrigger re-measures this scene one last time before it is rebuilt
+    let lastAim = { x: 0, y: 0 };
     const aim = () => {
+      if (letters.getNumberOfChars() < 2) return lastAim;
       const ext = letters.getExtentOfChar(1), ty = +letters.getAttribute('y')!;
       const k = scaleK(), ox = (sw() - vbW * k) / 2, oy = (sh() - vbH * k) / 2;
-      return { x: ox + (ext.x + ext.width / 2) * k, y: oy + (ty - fontPx * .36) * k };
+      return (lastAim = { x: ox + (ext.x + ext.width / 2) * k, y: oy + (ty - fontPx * .36) * k });
     };
     const dOrigin = () => `${aim().x}px ${aim().y}px`;
     /* The scene on one pin, in parts that are each scrubbed by their own trigger:
@@ -425,12 +442,17 @@ function build(root: HTMLElement, wide: boolean, ctx: gsap.Context) {
     const travel = (k: number) => Math.max(0, projBox.offsetTop + cards[k].offsetHeight - (Math.min(innerHeight, foStage.clientHeight) - 72));
     const hold = (k: number) => Math.max(innerHeight * .35, travel(k) + innerHeight * .3);
     const lenA = () => U() * .88, lenT = () => U() * .14, lenB = () => U() * .16;
+    // after night has fallen, the ball's short run through the dark before Contact's pin takes over
+    const lenDark = () => innerHeight * .15;
     // where each reading stop and hand-over starts, from the start of the pin
     const atR = (k: number): number => k ? atT(k - 1) + lenT() : lenA();
     const atT = (k: number): number => atR(k) + hold(k);
     const atB = () => atR(N - 1) + hold(N - 1);
     const fSt = ScrollTrigger.create({
-      trigger: fo, start: 'top top', end: () => '+=' + (atB() + lenB()), pin: $('fostage'), invalidateOnRefresh: true,
+      trigger: fo, start: 'top top', end: () => '+=' + (atB() + lenB() + lenDark()), pin: $('fostage'), invalidateOnRefresh: true,
+      // Contact is pulled up one screen (CSS), so its pin starts the moment this one ends: no dark screen to scroll
+      // through in between. This stage stays in front of it while pinned, and Contact is in front after.
+      onToggle: (self) => fo.toggleAttribute('data-front', self.isActive),
       // keyboard focus inside a project (the diagram's link) lands at the end of that project's reading stop
       onRefresh: (self) => projs.forEach((p, k) => { p.dataset.at = String((atR(k) + innerHeight * .15 + travel(k)) / (self.end - self.start)); }),
     });
@@ -441,7 +463,20 @@ function build(root: HTMLElement, wide: boolean, ctx: gsap.Context) {
     // for its first element alone, and the others would show at full opacity over the lettering until reached.
     const rise = (tl: gsap.core.Timeline, els: Element[], from: gsap.TweenVars, to: gsap.TweenVars, at: number, each: number) =>
       els.forEach((el, i) => tl.fromTo(el, from, to, at + i * each));
-    const fTl = gsap.timeline({ defaults: { ease: 'none' }, scrollTrigger: part(() => 0, lenA) });
+    /* The lettering's GPU layer (will-change: transform) keeps the zoom in cheap, but Chrome only ever raises the
+       resolution of such a layer: created mid-zoom, or after a zoom in, it is up to ~30x, far more than Chrome can
+       draw, and on the way back out the garnet panel and most letters stayed blank. So the layer is created only with
+       the lettering at rest (1x), and dropped as soon as the page scrolls back up while the lettering is zoomed; Chrome
+       then draws it at each size, and a new 1x layer comes back once it is at rest again. Never switched on mid-zoom. */
+    let fTl: gsap.core.Timeline;
+    const atRest = () => fTl.time() <= .04;
+    const hint = (on: boolean) => mask.toggleAttribute('data-hint', on);
+    fTl = gsap.timeline({ defaults: { ease: 'none' }, scrollTrigger: { ...part(() => 0, lenA), onUpdate: (self) => { if (fTl && self.direction < 0 && !atRest()) hint(false); } } });
+    fTl.eventCallback('onUpdate', () => { if (atRest() && !mask.hasAttribute('data-hint')) hint(true); });
+    ScrollTrigger.create({ trigger: fo, start: 'top bottom+=50%', end: 'bottom top-=50%', onToggle: (self) => hint(self.isActive && atRest()) });
+    const hintOnRefresh = () => { if (!atRest()) hint(false); };
+    ScrollTrigger.addEventListener('refreshInit', hintOnRefresh);
+    off.push(() => { ScrollTrigger.removeEventListener('refreshInit', hintOnRefresh); mask.removeAttribute('data-hint'); });
     // Chrome caps SVG text at 10,000px on screen and shrinks the glyphs beyond that, so the zoom stops just under
     // the cap for this screen size and the garnet fades away to finish the move through the letter
     const maxZoom = () => Math.max(4, 9000 / (fontPx * scaleK()));
@@ -475,12 +510,13 @@ function build(root: HTMLElement, wide: boolean, ctx: gsap.Context) {
     gsap.timeline({ defaults: { ease: 'none' }, scrollTrigger: part(atB, lenB) })
       .to(projBox, { opacity: 0, y: -60, duration: .05 }, 0)
       .to($('fonight'), { opacity: 1, duration: .1 }, .04);
-    // The ball: it rolls in from the left as night falls and keeps rolling through the dark stretch between this scene
-    // and Contact (it is held to the screen, outside the pinned stage), speeding up, and leaves on the right just as
-    // Contact's pin starts and Contact's ball comes in from the left: same size, height and spin, one continuous move.
+    // The ball: it rolls in from the left as night falls and keeps rolling through the dark (it is held to the screen,
+    // outside the pinned stage), speeding up, and leaves on the right just as Contact's pin starts and Contact's ball
+    // comes in from the left: same size, height and spin, one continuous move.
     // Off screen before and after, so it is never seen anywhere else.
     gsap.fromTo($('foball'), { x: () => -innerWidth * .65, rotation: -1240, scale: .55, opacity: 1 }, { x: () => innerWidth * .65, rotation: 0, ease: 'power2.in',
-      scrollTrigger: { start: () => fSt.start + atB(), end: () => fSt.end + innerHeight, scrub: 1, invalidateOnRefresh: true } });
+      scrollTrigger: { start: () => fSt.start + atB(), end: () => fSt.end, scrub: 1, invalidateOnRefresh: true } });
+    off.push(() => fo.removeAttribute('data-front'));
     sceneOf.set('why', fSt);
     marks.set('why', () => fSt.start);
     liveLayers(fo, $('fostage'));
@@ -490,7 +526,7 @@ function build(root: HTMLElement, wide: boolean, ctx: gsap.Context) {
   const buildContact = () => {
     const co = root.querySelector('#contact') as HTMLElement;
     const coTitle = SplitText.create($('cotitle'), { type: 'words,chars', mask: 'words' });
-    const oTl = gsap.timeline({ defaults: { ease: 'none' }, scrollTrigger: { trigger: co, start: 'top top', end: () => '+=' + innerHeight * 1.5, pin: $('costage'), scrub: 1, invalidateOnRefresh: true } });
+    const oTl = gsap.timeline({ defaults: { ease: 'none' }, scrollTrigger: { trigger: co, start: 'top top', end: () => '+=' + innerHeight * .9, pin: $('costage'), scrub: 1, invalidateOnRefresh: true } });
     oTl.fromTo($('coball'), { x: () => -innerWidth * .65, rotation: -620, scale: .55 }, { x: 0, rotation: 0, scale: 1, duration: .3, ease: 'power2.out' }, 0)
       .fromTo($('copaper'), { clipPath: 'circle(0% at 50% 50%)' }, { clipPath: 'circle(150% at 50% 50%)', duration: .32, ease: 'power2.in' }, .3)
       .to($('coball'), { scale: 7, opacity: 0, duration: .26 }, .32)

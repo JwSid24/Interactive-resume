@@ -8,6 +8,8 @@
     "art:sheet": "node art/src/build-model-sheet.mjs"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
+    "@vercel/speed-insights": "^2.0.0",
     "gsap": "^3.15.0",
     "next": "^16.4.3",
     "react": "^19.3.1",

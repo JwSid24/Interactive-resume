@@ -3,7 +3,9 @@
    full-viewport pinned stages that motion.ts drives with ScrollTrigger.
    ===================================================================================================== */
 /* GPU layers for what scales every frame, switched on per scene by motion.ts (data-live) */
-.root [data-live] :is([data-k="sky"], [data-k="ground"], [data-k="focus"], [data-k="flare"], [data-k="back"], [data-k="front"], [data-k="photoin"], [data-k="fobg"], [data-mask], [data-k="pitch"], [data-k="coball"]) { will-change: transform; }
+.root [data-live] :is([data-k="sky"], [data-k="ground"], [data-k="focus"], [data-k="flare"], [data-k="back"], [data-k="front"], [data-k="photoin"], [data-k="fobg"], [data-k="pitch"], [data-k="coball"]) { will-change: transform; }
+/* the Why lettering zooms up to ~30x: its layer only while motion.ts has seen it at rest (data-hint), see buildWhy */
+.root [data-live] [data-mask][data-hint] { will-change: transform; }
 /* the opening's plates also slide with the mouse inside their scaling layer: their own layer keeps that a move, not a re-draw */
 .root [data-k="stage"][data-live] [data-depth] { will-change: transform; }
 .root { --display: var(--f-display), 'Arial Narrow', Impact, sans-serif; --serif: var(--f-serif), Georgia, serif; --mono: var(--f-mono), ui-monospace, monospace;
@@ -88,8 +90,8 @@
 .kMeta { display: flex; gap: 26px; margin: 0; padding: 0; list-style: none; font-size: 14px; text-align: right; }
 .kMeta span { display: block; margin-bottom: 5px; font: 600 10px/1 var(--mono); letter-spacing: .18em; text-transform: uppercase; color: rgba(255, 255, 255, .5); }
 .kCta { display: flex; flex-wrap: wrap; gap: 12px; justify-content: flex-end; }
-.kCue { position: absolute; left: 50%; bottom: 22px; display: grid; justify-items: center; gap: 10px; margin: 0; transform: translateX(-50%); font: 600 10px/1 var(--mono); letter-spacing: .22em; text-transform: uppercase; color: rgba(255, 255, 255, .6); }
-.kCue i { display: block; width: 1px; height: 34px; background: linear-gradient(var(--gold), transparent); transform-origin: 50% 0; }
+.kCue { position: absolute; left: 50%; bottom: 22px; display: grid; justify-items: center; gap: 12px; margin: 0; transform: translateX(-50%); font: 700 13px/1 var(--mono); letter-spacing: .22em; text-transform: uppercase; white-space: nowrap; color: #fff; text-shadow: 0 2px 14px rgba(10, 20, 40, .9); }
+.kCue i { display: block; width: 3px; height: 56px; border-radius: 3px; background: linear-gradient(var(--gold) 45%, rgba(233, 184, 58, 0)); transform-origin: 50% 0; filter: drop-shadow(0 0 7px rgba(233, 184, 58, .9)); }
 .on .kCue i { animation: cue 1.8s cubic-bezier(.6, 0, .2, 1) infinite; }
 @keyframes cue { 0% { transform: scaleY(0); } 50% { transform: scaleY(1); } 100% { transform: scaleY(1); opacity: 0; } }
 .kCardUi, .kExit { display: none; }
@@ -103,6 +105,10 @@
 .langs { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .langs li { padding: 8px 12px; border-radius: 999px; background: var(--paper-2); font-size: 14px; }
 .langs span { margin-left: 8px; font: 600 10px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--garnet); }
+/* the native language: its label sits under the name, so all four fit on one row */
+.langs { align-items: center; }
+.langs li[data-native] { display: flex; flex-direction: column; gap: 5px; padding: 8px 16px; }
+.langs li[data-native] span { margin-left: 0; }
 
 .on .kOutline { display: block; position: absolute; left: -2vw; bottom: -6vh; margin: 0; font: 900 clamp(300px, 58vw, 980px)/.8 var(--display); color: transparent; -webkit-text-stroke: 2px rgba(22, 16, 26, .08); pointer-events: none; user-select: none; }
 .on .kCardUi { display: block; position: absolute; top: 13%; right: 7%; bottom: 9%; left: 55%; z-index: 2; pointer-events: none; }
@@ -181,6 +187,9 @@
 .caNow i { position: relative; width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px rgba(46, 204, 113, .25); }
 .caNow i::after { content: ''; position: absolute; inset: -3px; border-radius: 50%; border: 2px solid var(--green); opacity: 0; }
 .caItem[data-active] .caCard { border-color: rgba(46, 204, 113, .5); box-shadow: inset 3px 0 0 var(--green); }
+/* a short student role: the same card, a step smaller, so it does not outweigh the longer roles */
+.caItem[data-minor] .caCard { padding: 18px 20px; }
+.caItem[data-minor] .caRole { font-size: clamp(22px, 1.9vw, 30px); }
 .caRole { margin: 0 0 6px; font: 800 clamp(28px, 2.5vw, 40px)/1 var(--display); text-transform: uppercase; letter-spacing: .01em; }
 .caPlace { margin: 0; color: var(--chalk); }
 .caPlace span { color: rgba(255, 255, 255, .5); }
@@ -203,6 +212,9 @@
 .on .caItem::before { content: ''; position: absolute; left: 0; top: 41%; width: 13px; height: 13px; margin-top: -6px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 5px rgba(233, 184, 58, .2); }
 .on .caItem::after { content: ''; position: absolute; left: 6px; top: calc(41% + 8px); height: 4%; width: 1px; background: rgba(233, 184, 58, .6); }
 .on .caItem[data-active]::before { background: var(--green); box-shadow: 0 0 0 5px rgba(46, 204, 113, .25); }
+.on .caItem[data-minor] { width: clamp(260px, 22vw, 340px); }
+.on .caItem[data-minor]::before { width: 9px; height: 9px; margin-top: -4px; left: 2px; }
+.on .caItem[data-minor]::after { left: 6px; }
 .on .caItem[data-active]::after { background: rgba(46, 204, 113, .7); }
 .on .caNow i::after { animation: live 1.8s ease-out infinite; }
 @keyframes live { 0% { transform: scale(.6); opacity: .9; } 100% { transform: scale(2.2); opacity: 0; } }
@@ -281,11 +293,13 @@
 .steps b { display: block; margin: 8px 0 6px; font: 800 clamp(19px, 1.45vw, 22px)/1 var(--display); text-transform: uppercase; }
 .steps p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--chalk); }
 .steps .stepDetail, .stepDetail { margin-top: 8px; padding-left: 10px; border-left: 2px solid rgba(233, 184, 58, .5); font-size: 13px; }
-.projDoc { margin: 22px 0 0; }
+/* the diagram keeps its own proportions (--ar, set from its size) and its space is reserved before it loads, so the
+   panel never grows while you scroll; at most 860px wide, and never taller than the screen leaves room for */
+.projDoc { width: min(100%, 860px, calc((100vh - 220px) * var(--ar, 1.6))); margin: 30px auto 0; }
 .projDoc figcaption { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; margin: 0 0 10px; font: 600 11px/1.3 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--gold); }
 .projDoc a { color: var(--chalk); text-decoration: underline; text-underline-offset: 3px; letter-spacing: .1em; }
 .projDoc a:hover, .projDoc a:focus-visible { color: #fff; }
-.projDoc img { display: block; width: auto; max-width: 100%; height: auto; max-height: max(260px, 100vh - 200px); padding: 10px; border-radius: 12px; background: #fff; box-sizing: border-box; }
+.projDoc img { display: block; width: 100%; height: auto; aspect-ratio: var(--ar, 1.6); object-fit: contain; padding: 10px; border-radius: 12px; background: #fff; box-sizing: border-box; }
 
 .on .foStage { height: 100vh; height: 100lvh; min-height: 0; padding: 0; }
 .on .foBg { opacity: 1; }
@@ -304,6 +318,9 @@
 /* the projects take the cards' place on screen; each panel holds still, or moves with the scroll when it is taller */
 .on .foProj { position: absolute; left: var(--pad); right: var(--pad); top: 12vh; z-index: 3; display: block; margin: 0; }
 .on .proj { position: absolute; left: 0; right: 0; top: 0; }
+/* the panels are stacked; a waiting panel's empty frame must not catch clicks meant for the one on screen */
+.on .proj { pointer-events: none; }
+.on .proj [data-proj-in] { pointer-events: auto; }
 .on .projNum { display: block; position: absolute; right: -1vw; top: -4vh; overflow: hidden; font: 900 clamp(200px, 30vw, 460px)/.8 var(--display); color: transparent; -webkit-text-stroke: 2px rgba(255, 255, 255, .1); pointer-events: none; }
 .on .projNum div { position: relative; width: 1.3em; height: .8em; }
 .on .projNum [data-num-out] { position: absolute; right: 0; top: 0; }
@@ -331,8 +348,13 @@
 .contactList a:hover { color: var(--garnet); }
 .footer { display: flex; justify-content: space-between; gap: 16px; padding: 22px var(--pad) 30px; background: var(--paper); border-top: 1px solid rgba(22, 16, 26, .15); font: 600 11px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: rgba(22, 16, 26, .55); }
 
+/* Contact starts where Why's pinned stage (one screen tall) ends, so the ball goes straight from one into the other.
+   Why is kept in front while pinned (motion.ts sets data-front). */
+.on .co { margin-top: -100vh; margin-top: -100lvh; }
+.on .fo[data-front] { z-index: 1; }
 .on .coStage { height: 100vh; height: 100lvh; overflow: hidden; background: var(--night); }
-.on .coBall { --s: clamp(90px, 11vw, 160px); display: block; position: absolute; left: 50%; top: 50%; z-index: 2; width: var(--s); height: var(--s); margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2); }
+/* decorative only: once it has grown (7x) and faded out it still sits over the page, so it must never take clicks */
+.on .coBall { --s: clamp(90px, 11vw, 160px); display: block; position: absolute; left: 50%; top: 50%; z-index: 2; width: var(--s); height: var(--s); margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2); pointer-events: none; }
 .on .coBall img { position: absolute; inset: 0; width: 100%; height: 100%; }
 .on .coPaper { position: absolute; inset: 0; z-index: 1; display: flex; align-items: center; padding: 80px var(--pad) 60px; clip-path: circle(0% at 50% 50%); }
 
@@ -394,6 +416,7 @@
   .on .caLine { top: 33%; }
   .on .caTrack { padding: 0 10vw 0 8vw; gap: 6vw; }
   .on .caItem { width: 84vw; }
+  .on .caItem[data-minor] { width: 74vw; }
   .on .caItem::before { top: 33%; }
   .on .caItem::after { top: calc(33% + 8px); height: 3%; }
   .on .caCard { top: 37%; max-height: calc(63% - 96px); padding: 20px; }

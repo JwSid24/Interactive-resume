@@ -1,5 +1,6 @@
 // Portfolio content. Facts come from Jwan Sidou's resume; the CDM role description and the GitHub link come from Jwan.
-export type Entry = { when: string; title: string; place: string; location?: string; tags?: string[]; points?: string[]; note?: string };
+// `minor`: a short student role, shown as a smaller card on the timeline
+export type Entry = { when: string; title: string; place: string; location?: string; tags?: string[]; points?: string[]; note?: string; minor?: boolean };
 // One project chapter in the Why section. `kind` sets its context (label, colour, layout): university group work with
 // a group grade, an individual project done end to end, or a personal project.
 export type StudyProject = {
@@ -19,7 +20,9 @@ export const cv = {
   tagline: 'Passion · Software · Communication',
   // Your photo for the profile card. Put the file in /public (e.g. public/photo.jpg) and set photo: 'photo.jpg'.
   // While it is empty, the card shows a clean placeholder.
-  photo: '',
+  photo: 'photo.webp',
+  // which part of the photo stays in view when the card crops it (CSS object-position): Jwan, slightly right of centre
+  photoPosition: '53% 30%',
   status: 'Open to new opportunities',
   about: [
     'Software engineering student at the University of Southern Denmark, currently in my 5th semester. I thrive at the intersection of people and technology, and I want to get better at translating a client\'s vision into precise, actionable requirements for a development team.',
@@ -147,6 +150,8 @@ export const cv = {
     },
   ],
   experience: [
+    { when: 'Sep 2025 – Oct 2025', title: 'Mathematics Tutor', place: 'University of Southern Denmark (SDU)', tags: ['Student role'], minor: true,
+      points: ['Prepared mathematical exercises and learning materials, explained mathematical concepts and guided students through problem-solving exercises. Also supported new students in understanding the course material.'] },
     { when: 'Jul 2025 – Present', title: 'Receptionist', place: 'Comwell Hotels', location: 'Odense, Southern Denmark', tags: ['Part-time', 'On-site'],
       points: ['Handling guest check-in and check-out as well as reservations, using a hotel booking system', 'Providing professional customer service in person and over the phone in Danish and English', 'Working with other departments to ensure a smooth guest experience', 'Handling payments, invoicing and administrative tasks at the front desk'] },
     { when: 'May 2024 – Aug 2024', title: 'Waiter', place: 'Bogense Hotel', location: 'Bogense, Southern Denmark', tags: ['Seasonal', 'On-site'],
@@ -172,6 +177,7 @@ export const cv = {
   links: [
     { label: 'Email', value: 'jwsid24@student.sdu.dk', href: 'mailto:jwsid24@student.sdu.dk' },
     { label: 'GitHub', value: 'github.com/JwSid24', href: 'https://github.com/JwSid24' },
+    { label: 'LinkedIn', value: 'linkedin.com/in/jwan-sidou-516a613b3', href: 'https://www.linkedin.com/in/jwan-sidou-516a613b3/' },
     { label: 'Location', value: 'Odense, Denmark' },
   ] as { label: string; value: string; href?: string }[],
 };
