@@ -3,7 +3,9 @@
    full-viewport pinned stages that motion.ts drives with ScrollTrigger.
    ===================================================================================================== */
 /* GPU layers for what scales every frame, switched on per scene by motion.ts (data-live) */
-.root [data-live] :is([data-k="sky"], [data-k="ground"], [data-k="focus"], [data-k="flare"], [data-k="back"], [data-k="front"], [data-k="photoin"], [data-k="fobg"], [data-mask], [data-k="pitch"], [data-k="coball"]) { will-change: transform; }
+.root [data-live] :is([data-k="sky"], [data-k="ground"], [data-k="focus"], [data-k="flare"], [data-k="back"], [data-k="front"], [data-k="photoin"], [data-k="fobg"], [data-k="pitch"], [data-k="coball"]) { will-change: transform; }
+/* the Why lettering zooms up to ~30x: its layer only while motion.ts has seen it at rest (data-hint), see buildWhy */
+.root [data-live] [data-mask][data-hint] { will-change: transform; }
 /* the opening's plates also slide with the mouse inside their scaling layer: their own layer keeps that a move, not a re-draw */
 .root [data-k="stage"][data-live] [data-depth] { will-change: transform; }
 .root { --display: var(--f-display), 'Arial Narrow', Impact, sans-serif; --serif: var(--f-serif), Georgia, serif; --mono: var(--f-mono), ui-monospace, monospace;
@@ -88,8 +90,8 @@
 .kMeta { display: flex; gap: 26px; margin: 0; padding: 0; list-style: none; font-size: 14px; text-align: right; }
 .kMeta span { display: block; margin-bottom: 5px; font: 600 10px/1 var(--mono); letter-spacing: .18em; text-transform: uppercase; color: rgba(255, 255, 255, .5); }
 .kCta { display: flex; flex-wrap: wrap; gap: 12px; justify-content: flex-end; }
-.kCue { position: absolute; left: 50%; bottom: 22px; display: grid; justify-items: center; gap: 10px; margin: 0; transform: translateX(-50%); font: 600 10px/1 var(--mono); letter-spacing: .22em; text-transform: uppercase; color: rgba(255, 255, 255, .6); }
-.kCue i { display: block; width: 1px; height: 34px; background: linear-gradient(var(--gold), transparent); transform-origin: 50% 0; }
+.kCue { position: absolute; left: 50%; bottom: 22px; display: grid; justify-items: center; gap: 12px; margin: 0; transform: translateX(-50%); font: 700 13px/1 var(--mono); letter-spacing: .22em; text-transform: uppercase; white-space: nowrap; color: #fff; text-shadow: 0 2px 14px rgba(10, 20, 40, .9); }
+.kCue i { display: block; width: 3px; height: 56px; border-radius: 3px; background: linear-gradient(var(--gold) 45%, rgba(233, 184, 58, 0)); transform-origin: 50% 0; filter: drop-shadow(0 0 7px rgba(233, 184, 58, .9)); }
 .on .kCue i { animation: cue 1.8s cubic-bezier(.6, 0, .2, 1) infinite; }
 @keyframes cue { 0% { transform: scaleY(0); } 50% { transform: scaleY(1); } 100% { transform: scaleY(1); opacity: 0; } }
 .kCardUi, .kExit { display: none; }
@@ -103,6 +105,10 @@
 .langs { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .langs li { padding: 8px 12px; border-radius: 999px; background: var(--paper-2); font-size: 14px; }
 .langs span { margin-left: 8px; font: 600 10px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--garnet); }
+/* the native language: its label sits under the name, so all four fit on one row */
+.langs { align-items: center; }
+.langs li[data-native] { display: flex; flex-direction: column; gap: 5px; padding: 8px 16px; }
+.langs li[data-native] span { margin-left: 0; }
 
 .on .kOutline { display: block; position: absolute; left: -2vw; bottom: -6vh; margin: 0; font: 900 clamp(300px, 58vw, 980px)/.8 var(--display); color: transparent; -webkit-text-stroke: 2px rgba(22, 16, 26, .08); pointer-events: none; user-select: none; }
 .on .kCardUi { display: block; position: absolute; top: 13%; right: 7%; bottom: 9%; left: 55%; z-index: 2; pointer-events: none; }
@@ -181,6 +187,9 @@
 .caNow i { position: relative; width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px rgba(46, 204, 113, .25); }
 .caNow i::after { content: ''; position: absolute; inset: -3px; border-radius: 50%; border: 2px solid var(--green); opacity: 0; }
 .caItem[data-active] .caCard { border-color: rgba(46, 204, 113, .5); box-shadow: inset 3px 0 0 var(--green); }
+/* a short student role: the same card, a step smaller, so it does not outweigh the longer roles */
+.caItem[data-minor] .caCard { padding: 18px 20px; }
+.caItem[data-minor] .caRole { font-size: clamp(22px, 1.9vw, 30px); }
 .caRole { margin: 0 0 6px; font: 800 clamp(28px, 2.5vw, 40px)/1 var(--display); text-transform: uppercase; letter-spacing: .01em; }
 .caPlace { margin: 0; color: var(--chalk); }
 .caPlace span { color: rgba(255, 255, 255, .5); }
@@ -203,6 +212,9 @@
 .on .caItem::before { content: ''; position: absolute; left: 0; top: 41%; width: 13px; height: 13px; margin-top: -6px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 5px rgba(233, 184, 58, .2); }
 .on .caItem::after { content: ''; position: absolute; left: 6px; top: calc(41% + 8px); height: 4%; width: 1px; background: rgba(233, 184, 58, .6); }
 .on .caItem[data-active]::before { background: var(--green); box-shadow: 0 0 0 5px rgba(46, 204, 113, .25); }
+.on .caItem[data-minor] { width: clamp(260px, 22vw, 340px); }
+.on .caItem[data-minor]::before { width: 9px; height: 9px; margin-top: -4px; left: 2px; }
+.on .caItem[data-minor]::after { left: 6px; }
 .on .caItem[data-active]::after { background: rgba(46, 204, 113, .7); }
 .on .caNow i::after { animation: live 1.8s ease-out infinite; }
 @keyframes live { 0% { transform: scale(.6); opacity: .9; } 100% { transform: scale(2.2); opacity: 0; } }
@@ -217,8 +229,8 @@
 .foStage { position: relative; min-height: 100vh; padding: clamp(88px, 11vw, 160px) var(--pad); overflow: hidden; }
 .foBg { opacity: .22; }
 .foScrim { position: absolute; inset: 0; background: linear-gradient(135deg, rgba(92, 10, 42, .7), rgba(10, 46, 110, .7)); }
-.foMask, .foSpeed, .foNight { display: none; }
-.foIntro, .foBody, .foMove { position: relative; z-index: 2; }
+.foMask, .foNight, .foBall { display: none; }
+.foIntro, .foBody { position: relative; z-index: 2; }
 .foTitle { display: grid; margin: 0 0 28px; font: 900 clamp(110px, 19vw, 300px)/.8 var(--display); letter-spacing: -.01em; }
 .foCdm { font-size: clamp(64px, 10vw, 170px); line-height: .86; }
 .foTitle em { margin-top: 14px; font-size: clamp(26px, 3vw, 48px); line-height: 1.1; color: var(--gold); }
@@ -228,14 +240,68 @@
 .pillars span { font: 600 10px/1 var(--mono); letter-spacing: .16em; color: var(--gold); }
 .pillars b { display: block; margin: 16px 0 8px; font: 800 clamp(24px, 2.2vw, 34px)/1 var(--display); text-transform: uppercase; }
 .pillars p { margin: 0; font-size: 15px; line-height: 1.5; color: var(--chalk); }
-.foMove { max-width: 360px; margin: 48px 0 0; padding: 24px 24px 0; border-radius: 22px; overflow: hidden; background: linear-gradient(180deg, #F4C21E 0%, var(--gold) 45%, var(--garnet) 100%); box-shadow: 0 30px 70px rgba(0, 0, 0, .45); }
-.foMove::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(115deg, rgba(255, 255, 255, .2) 0 5px, transparent 5px 34px); }
-.moveBall { position: relative; width: 74%; aspect-ratio: 1; margin: 6% auto 9%; filter: drop-shadow(0 18px 24px rgba(22, 16, 26, .35)); }
-.moveBall img { position: absolute; inset: 0; width: 100%; height: 100%; }
-.foMove figcaption { position: relative; display: grid; gap: 4px; margin: 0 -24px; padding: 14px 24px; background: var(--ink); font: 900 clamp(34px, 3.4vw, 50px)/1 var(--display); letter-spacing: .04em; }
-.foMove small { font: 600 10px/1 var(--mono); letter-spacing: .2em; color: var(--gold); }
+/* the two university projects: one panel each, in the cards' dark glass with a stripe per project */
+.foProj { position: relative; z-index: 2; display: grid; gap: 24px; max-width: 1100px; margin: 56px 0 0; }
+.projNum { display: none; }
+.projCard { position: relative; padding: clamp(20px, 2.2vw, 30px); border-radius: 22px; background: rgba(10, 20, 40, .82); border: 1px solid var(--chalk-2); overflow: hidden; }
+.projCard::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: linear-gradient(90deg, var(--garnet), var(--gold)); }
+.toneBlue::before { background: linear-gradient(90deg, var(--blue-2), var(--gold)); }
+.toneGold::before { background: linear-gradient(90deg, var(--gold), #F4C21E); }
+.toneGreen::before { background: linear-gradient(90deg, var(--green), var(--gold)); }
+/* the individual project carries the emphasis: a gold frame and glow around the whole panel */
+.projSolo .grade { margin-top: 14px; }
+.projSolo { border-color: rgba(233, 184, 58, .6); box-shadow: 0 0 0 1px rgba(233, 184, 58, .25), 0 24px 70px rgba(233, 184, 58, .12); }
+.projHead { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 0 16px; }
+.projKicker { margin: 0; font: 600 11px/1.3 var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--chalk); }
+.projKicker span { margin-right: 12px; color: var(--gold); }
+.projPath { display: flex; flex: none; align-items: center; gap: 8px; margin: 0; font: 600 10px/1 var(--mono); letter-spacing: .14em; color: rgba(255, 255, 255, .38); }
+.projPath [data-on] { color: var(--gold); }
+.projPath i { position: relative; width: 24px; height: 1px; background: var(--chalk-2); }
+.projPath b { position: absolute; inset: 0; background: var(--gold); transform-origin: 0 50%; transform: scaleX(0); }
+.projPath [data-done] b { transform: none; }
+.projGrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: clamp(24px, 3vw, 48px); }
+.projCard h3 { margin: 0 0 12px; font: 800 clamp(30px, 3.2vw, 48px)/.92 var(--display); text-transform: uppercase; }
+.projOverview { margin: 0; font-size: 15px; line-height: 1.55; color: var(--chalk); }
+.projFacts { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; margin-top: 16px; }
+.projSystem { display: flex; flex-direction: column; justify-content: center; margin: 0; padding: 12px 12px 10px; border-radius: 14px; border: 1px dashed var(--chalk-2); }
+.projSystem svg { display: block; width: 100%; height: auto; max-height: 150px; }
+.projSystem path { fill: none; stroke: var(--gold); stroke-width: 1.5; stroke-dasharray: 4 4; opacity: .8; }
+.projSystem rect { fill: rgba(255, 255, 255, .05); stroke: var(--chalk-2); }
+.projSystem rect[data-hub] { fill: rgba(233, 184, 58, .14); stroke: rgba(233, 184, 58, .6); }
+.projSystem text { font: 600 11px var(--mono); letter-spacing: .06em; fill: #fff; }
+.projSystem text[data-via] { font-size: 10px; letter-spacing: .14em; fill: var(--gold); }
+.projSystem figcaption { margin-top: 8px; font: 600 9px/1.3 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: rgba(255, 255, 255, .45); }
+.grade { display: flex; flex-direction: column; justify-content: center; width: 168px; padding: 14px 16px; border-radius: 14px; background: rgba(233, 184, 58, .08); border: 1px solid rgba(233, 184, 58, .45); }
+.grade > span:first-child { font: 600 10px/1.3 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--gold); }
+.grade b { margin: 10px 0 8px; font: 900 58px/.85 var(--display); color: #fff; }
+.grade b small { font-size: .45em; color: rgba(255, 255, 255, .5); }
+.grade[data-word] b { font-size: 30px; line-height: .95; white-space: nowrap; }
+.grade > small { font: 600 9px/1.45 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--chalk); }
+.projH { margin: 0 0 8px; font: 600 11px/1.3 var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--gold); }
+.contrib { margin: 0; padding: 0; list-style: none; }
+.contrib li { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 8px; padding: 10px 0; border-top: 1px solid var(--chalk-2); }
+.contrib li > span { padding-top: 4px; font: 600 10px/1 var(--mono); letter-spacing: .14em; color: var(--gold); }
+.contrib b, .team b { display: block; margin: 0 0 4px; font: 800 clamp(19px, 1.45vw, 22px)/1 var(--display); text-transform: uppercase; }
+.contrib p, .team p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--chalk); }
+.team { margin-top: 10px; padding: 12px 14px; border-radius: 14px; background: rgba(255, 255, 255, .04); border: 1px solid var(--chalk-2); }
+.stepsH { margin-top: 22px; }
+.steps { position: relative; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; margin: 0; padding: 18px 0 0; list-style: none; }
+.steps::before { content: ''; position: absolute; left: 0; right: 0; top: 4px; height: 1px; background: linear-gradient(90deg, var(--gold), rgba(233, 184, 58, .2)); }
+.steps li { position: relative; }
+.steps li::before { content: ''; position: absolute; left: 0; top: -18px; width: 9px; height: 9px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 4px rgba(233, 184, 58, .18); }
+.steps li > span { font: 600 10px/1 var(--mono); letter-spacing: .14em; color: var(--gold); }
+.steps b { display: block; margin: 8px 0 6px; font: 800 clamp(19px, 1.45vw, 22px)/1 var(--display); text-transform: uppercase; }
+.steps p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--chalk); }
+.steps .stepDetail, .stepDetail { margin-top: 8px; padding-left: 10px; border-left: 2px solid rgba(233, 184, 58, .5); font-size: 13px; }
+/* the diagram keeps its own proportions (--ar, set from its size) and its space is reserved before it loads, so the
+   panel never grows while you scroll; at most 860px wide, and never taller than the screen leaves room for */
+.projDoc { width: min(100%, 860px, calc((100vh - 220px) * var(--ar, 1.6))); margin: 30px auto 0; }
+.projDoc figcaption { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; margin: 0 0 10px; font: 600 11px/1.3 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--gold); }
+.projDoc a { color: var(--chalk); text-decoration: underline; text-underline-offset: 3px; letter-spacing: .1em; }
+.projDoc a:hover, .projDoc a:focus-visible { color: #fff; }
+.projDoc img { display: block; width: 100%; height: auto; aspect-ratio: var(--ar, 1.6); object-fit: contain; padding: 10px; border-radius: 12px; background: #fff; box-sizing: border-box; }
 
-.on .foStage { height: 100vh; height: 100lvh; min-height: 0; padding: 0; perspective: 1200px; }
+.on .foStage { height: 100vh; height: 100lvh; min-height: 0; padding: 0; }
 .on .foBg { opacity: 1; }
 .on .foScrim { background: var(--night); opacity: 0; }
 .on .foMask { display: block; position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; }
@@ -245,10 +311,20 @@
 .on .foTitle { margin: 0; }
 .on .foTitle em { margin: 0; font-size: clamp(30px, 3.6vw, 60px); }
 .on .foBody { position: absolute; left: var(--pad); right: var(--pad); top: 17vh; z-index: 3; }
-.on .foSpeed { display: block; position: absolute; inset: 0 -15%; z-index: 3; opacity: 0; mix-blend-mode: screen; pointer-events: none; }
-.on .foSpeed img { width: 100%; height: 100%; object-fit: cover; }
-.on .foMove { --w: min(380px, 66vw, 44vh); position: absolute; left: calc(50% - var(--w) / 2); top: 50%; z-index: 4; width: var(--w); max-width: none; margin: calc(var(--w) * -.6) 0 0; }
 .on .foNight { display: block; position: absolute; inset: 0; z-index: 6; background: var(--night); opacity: 0; pointer-events: none; }
+/* the same ball, size and height as the one that opens Contact, so the hand-over reads as one ball */
+.on .foBall { --s: clamp(90px, 11vw, 160px); display: block; position: fixed; left: 50%; top: 50%; z-index: 7; width: var(--s); height: var(--s); margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2); opacity: 0; pointer-events: none; }
+.on .foBall img { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* the projects take the cards' place on screen; each panel holds still, or moves with the scroll when it is taller */
+.on .foProj { position: absolute; left: var(--pad); right: var(--pad); top: 12vh; z-index: 3; display: block; margin: 0; }
+.on .proj { position: absolute; left: 0; right: 0; top: 0; }
+/* the panels are stacked; a waiting panel's empty frame must not catch clicks meant for the one on screen */
+.on .proj { pointer-events: none; }
+.on .proj [data-proj-in] { pointer-events: auto; }
+.on .projNum { display: block; position: absolute; right: -1vw; top: -4vh; overflow: hidden; font: 900 clamp(200px, 30vw, 460px)/.8 var(--display); color: transparent; -webkit-text-stroke: 2px rgba(255, 255, 255, .1); pointer-events: none; }
+.on .projNum div { position: relative; width: 1.3em; height: .8em; }
+.on .projNum [data-num-out] { position: absolute; right: 0; top: 0; }
+.on .projNum span { display: block; height: .8em; }
 
 /* =====================================================================================================
    06 contact
@@ -272,8 +348,13 @@
 .contactList a:hover { color: var(--garnet); }
 .footer { display: flex; justify-content: space-between; gap: 16px; padding: 22px var(--pad) 30px; background: var(--paper); border-top: 1px solid rgba(22, 16, 26, .15); font: 600 11px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: rgba(22, 16, 26, .55); }
 
+/* Contact starts where Why's pinned stage (one screen tall) ends, so the ball goes straight from one into the other.
+   Why is kept in front while pinned (motion.ts sets data-front). */
+.on .co { margin-top: -100vh; margin-top: -100lvh; }
+.on .fo[data-front] { z-index: 1; }
 .on .coStage { height: 100vh; height: 100lvh; overflow: hidden; background: var(--night); }
-.on .coBall { --s: clamp(90px, 11vw, 160px); display: block; position: absolute; left: 50%; top: 50%; z-index: 2; width: var(--s); height: var(--s); margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2); }
+/* decorative only: once it has grown (7x) and faded out it still sits over the page, so it must never take clicks */
+.on .coBall { --s: clamp(90px, 11vw, 160px); display: block; position: absolute; left: 50%; top: 50%; z-index: 2; width: var(--s); height: var(--s); margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2); pointer-events: none; }
 .on .coBall img { position: absolute; inset: 0; width: 100%; height: 100%; }
 .on .coPaper { position: absolute; inset: 0; z-index: 1; display: flex; align-items: center; padding: 80px var(--pad) 60px; clip-path: circle(0% at 50% 50%); }
 
@@ -282,6 +363,10 @@
    ===================================================================================================== */
 @media (max-width: 980px) {
   .pillars { grid-template-columns: 1fr; }
+  .projGrid { grid-template-columns: 1fr; gap: 22px; }
+  .steps { grid-template-columns: 1fr; gap: 16px; padding: 0 0 0 22px; }
+  .steps::before { left: 4px; right: auto; top: 6px; bottom: 6px; width: 1px; height: auto; background: linear-gradient(180deg, var(--gold), rgba(233, 184, 58, .2)); }
+  .steps li::before { left: -22px; top: 2px; }
   .facts div { grid-template-columns: 96px 1fr; }
 }
 @media (max-width: 760px) {
@@ -331,6 +416,7 @@
   .on .caLine { top: 33%; }
   .on .caTrack { padding: 0 10vw 0 8vw; gap: 6vw; }
   .on .caItem { width: 84vw; }
+  .on .caItem[data-minor] { width: 74vw; }
   .on .caItem::before { top: 33%; }
   .on .caItem::after { top: calc(33% + 8px); height: 3%; }
   .on .caCard { top: 37%; max-height: calc(63% - 96px); padding: 20px; }
@@ -345,6 +431,11 @@
   .on .pillars b { margin: 8px 0 4px; font-size: 22px; }
   .on .pillars p { font-size: 13px; }
   .on .foIntro { bottom: 12vh; }
+  .projHead { flex-wrap: wrap; gap: 10px; }
+  .projCard h3 { font-size: 30px; }
+  .projFacts { grid-template-columns: 1fr; }
+  .grade { width: auto; }
+  .on .foProj { top: 13vh; }
 
   .on .coPaper { align-items: center; padding: 80px var(--pad) 90px; }
   .huge { font-size: 21vw; }

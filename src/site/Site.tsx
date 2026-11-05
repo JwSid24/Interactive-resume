@@ -2,8 +2,8 @@
 // Motion-led portfolio: one continuous camera move through six pinned scenes. Every scene ends in the colour and
 // framing the next one starts with, so the page reads as a single shot. The DOM below is the readable, static
 // layout (used for reduced motion); motion.ts layers the scroll choreography on top when motion is allowed.
-import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { cv, Entry } from '../content/cv';
+import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { cv, Entry, StudyProject } from '../content/cv';
 import manifest from '../../public/assets/opening/manifest.json';
 import { SQUAD_LINKS } from './squad';
 import s from './site.module.css';
@@ -11,7 +11,7 @@ import s from './site.module.css';
 const A = (process.env.NEXT_PUBLIC_BASE_PATH || '') + '/assets/opening/';
 // The detailed plates (crowds, clouds, pitch) ship as WebP renders of the SVG art: the camera moves scale them
 // every frame, and a bitmap scales on the GPU where a complex SVG would be re-drawn from scratch each time.
-const RASTER = new Set(['low-sky', 'low-ground', 'wide-sky', 'wide-clouds', 'wide-stadium', 'wide-pitch', 'fx-speed']);
+const RASTER = new Set(['low-sky', 'low-ground', 'wide-sky', 'wide-clouds', 'wide-stadium', 'wide-pitch']);
 const img = (n: string) => A + n + (RASTER.has(n) ? '.webp' : '.svg');
 
 export const NAV = [
@@ -58,6 +58,107 @@ function Ball({ x, y, r, light = 'tr', k, spin }: { x: number; y: number; r: num
 function Label({ no, children }: { no: string; children: ReactNode }) {
   return <p className={s.label} data-fade><span>{no}</span><i aria-hidden />{children}</p>;
 }
+/* a schematic of a project's setup: our system on the left, each confirmed part on the right with its protocol.
+   Lines and labels only, so it can never be mistaken for a screenshot; real project images replace it later. */
+function System({ hub, parts }: NonNullable<StudyProject['system']>) {
+  const row = 46, h = Math.max(parts.length * row, 70), hubY = h / 2;
+  return (
+    <svg viewBox={`0 0 360 ${h}`} aria-hidden>
+      {parts.map((p, i) => {
+        const y = row / 2 + i * row + (h - parts.length * row) / 2;
+        return (
+          <g key={p.name}>
+            <path d={`M118 ${hubY} C170 ${hubY} 178 ${y} 226 ${y}`} />
+            <text x="218" y={y - 8} textAnchor="end" data-via>{p.via}</text>
+            <rect x="226" y={y - 14} width="134" height="28" rx="14" /><text x="293" y={y + 4} textAnchor="middle">{p.name}</text>
+          </g>
+        );
+      })}
+      <rect x="0" y={hubY - 18} width="118" height="36" rx="10" data-hub /><text x="59" y={hubY + 4} textAnchor="middle" data-hub>{hub}</text>
+    </svg>
+  );
+}
+const TONE = { garnet: s.toneGarnet, blue: s.toneBlue, gold: s.toneGold, green: s.toneGreen };
+/* One project chapter. Layers, each animated by one part of the Why scene only: the article leaves, [data-proj-in]
+   comes in, [data-proj-move] moves a tall panel with the scroll, and the card itself rises in (the first project). */
+function Project({ p, i, n }: { p: StudyProject; i: number; n: number }) {
+  const solo = p.kind === 'solo';
+  const result = (
+    <div className={s.grade} data-word={p.result.of ? undefined : ''}>
+      <span>{p.result.label}</span>
+      <b aria-hidden={p.result.sr ? true : undefined}>{p.result.value}{p.result.of && <small> / {p.result.of}</small>}</b>
+      {p.result.sr && <span className={s.sr}>{p.result.sr}</span>}
+      <small>{p.result.text}</small>
+    </div>
+  );
+  const items = p.list.items.map((c, k) => (
+    <li key={c.title} data-contrib><span>0{k + 1}</span><div><b>{c.title}</b><p>{c.text}</p>{c.detail && <p className={s.stepDetail}>{c.detail}</p>}</div></li>
+  ));
+  return (
+    <article className={s.proj} data-proj={i} aria-labelledby={`proj-${p.no}`}>
+      <div data-proj-in>
+        <div className={s.projMove} data-proj-move>
+          <div className={`${s.projCard} ${TONE[p.tone]} ${solo ? s.projSolo : ''}`} data-proj-card>
+            <header className={s.projHead}>
+              <p className={s.projKicker}><span>Project {p.no}</span>{p.label}</p>
+              <p className={s.projPath} aria-hidden>
+                {Array.from({ length: n }, (_, k) => (
+                  <Fragment key={k}>
+                    {k > 0 && <i data-done={k <= i ? '' : undefined}><b data-proj-fill={k === i ? '' : undefined} /></i>}
+                    <span data-on={k <= i ? '' : undefined}>{String(k + 1).padStart(2, '0')}</span>
+                  </Fragment>
+                ))}
+              </p>
+            </header>
+            {solo ? (
+              <>
+                <div className={s.projGrid}>
+                  <div><h3 id={`proj-${p.no}`}>{p.title}</h3><p className={s.projOverview}>{p.overview}</p></div>
+                  <div><ul className={s.tags} aria-label="Technologies">{p.tech.map((t) => <li key={t}>{t}</li>)}</ul>{result}</div>
+                </div>
+                <h4 className={`${s.projH} ${s.stepsH}`}>{p.list.heading}</h4>
+                <ol className={s.steps}>{items}</ol>
+                {p.doc && (
+                  <figure className={s.projDoc} data-contrib style={{ '--ar': p.doc.width / p.doc.height } as CSSProperties}>
+                    <figcaption><span>{p.doc.caption}</span><a href={`${BASE}/${p.doc.src}`} target="_blank" rel="noopener noreferrer">Open full size ↗</a></figcaption>
+                    <img src={`${BASE}/${p.doc.src}`} alt={p.doc.alt} width={p.doc.width} height={p.doc.height} loading="lazy" decoding="async" />
+                  </figure>
+                )}
+              </>
+            ) : (
+              <div className={s.projGrid}>
+                <div>
+                  <h3 id={`proj-${p.no}`}>{p.title}</h3>
+                  <p className={s.projOverview}>{p.overview}</p>
+                  <ul className={s.tags} aria-label="Technologies">{p.tech.map((t) => <li key={t}>{t}</li>)}</ul>
+                  <div className={s.projFacts}>
+                    {p.system && (
+                      <figure className={s.projSystem}>
+                        <System {...p.system} />
+                        <figcaption>Schematic of the setup · not a screenshot</figcaption>
+                      </figure>
+                    )}
+                    {result}
+                  </div>
+                </div>
+                <div>
+                  <h4 className={s.projH}>{p.list.heading}</h4>
+                  <ol className={s.contrib}>{items}</ol>
+                  {p.note && (
+                    <div className={s.team} data-contrib>
+                      <h4 className={s.projH}>{p.note.heading}</h4>
+                      <b>{p.note.title}</b><p>{p.note.text}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+}
 function Details({ e }: { e: Entry }) {
   if (!e.points) return null;
   return (
@@ -103,7 +204,7 @@ const Pitch = memo(function Pitch({ go, copy, copied }: { go: (id: string) => vo
             {/* the profile card's photo: set cv.photo to show your picture; until then a clean empty slot */}
             <div className={s.kPhoto} data-k="photo">
               <div className={s.kPhotoIn} data-k="photoin">
-                {cv.photo ? <img src={`${BASE}/${cv.photo}`} alt="Jwan Sidou" /> : null}
+                {cv.photo ? <img src={`${BASE}/${cv.photo}`} alt="Jwan Sidou" style={{ objectPosition: cv.photoPosition }} /> : null}
               </div>
             </div>
           </div>
@@ -141,7 +242,7 @@ const Pitch = memo(function Pitch({ go, copy, copied }: { go: (id: string) => vo
             {cv.stats.map((f) => <div key={f.label}><dt>{f.label}</dt><dd>{f.value}</dd></div>)}
           </dl>
           <h3 className={s.small} data-fade>Languages</h3>
-          <ul className={s.langs} data-stagger>{cv.languages.map((l) => <li key={l.name}><b>{l.name}</b><span>{l.level}</span></li>)}</ul>
+          <ul className={s.langs} data-stagger>{cv.languages.map((l) => <li key={l.name} data-native={l.level === 'Native language' || undefined}><b>{l.name}</b><span>{l.level}</span></li>)}</ul>
         </div>
       </section>
     </div>
@@ -200,7 +301,7 @@ const Pitch = memo(function Pitch({ go, copy, copied }: { go: (id: string) => vo
         <div className={s.caLine} aria-hidden><i data-k="caball"><Img n="ball-pattern" /></i></div>
         <ol className={s.caTrack} data-k="track">
           {SEASONS.map((e) => (
-            <li key={e.title + e.place + e.when} className={s.caItem} data-season data-year={e.when.split('–')[0].trim().split(' ')[1]} data-active={ongoing(e) || undefined}>
+            <li key={e.title + e.place + e.when} className={s.caItem} data-season data-year={e.when.split('–')[0].trim().split(' ')[1]} data-active={ongoing(e) || undefined} data-minor={e.minor || undefined}>
               <div className={s.caCard} data-season-in>
                 <p className={s.caMeta}><span data-kind={e.kind}>{e.kind}</span>{e.when}{ongoing(e) && <b className={s.caNow}><i aria-hidden />Ongoing</b>}</p>
                 <h3 className={s.caRole}>{e.title}</h3>
@@ -253,13 +354,18 @@ const Pitch = memo(function Pitch({ go, copy, copied }: { go: (id: string) => vo
             {cv.qualities.map((q, i) => <li key={q.title} data-pillar><span>0{i + 1}</span><b>{q.title}</b><p>{q.text}</p></li>)}
           </ol>
         </div>
-        <div className={s.foSpeed} data-k="fospeed" aria-hidden><Img n="fx-speed" /></div>
-        <figure className={s.foMove} data-k="fomove">
-          <div className={s.moveBall} aria-hidden><img src={img('ball-pattern')} alt="" data-k="moveball" loading="lazy" decoding="async" /><Img n="ball-shade" /></div>
-          <figcaption><small>必殺技 · Special move</small>TIGER SHOT</figcaption>
-        </figure>
+        {/* the four projects: one chapter each, after the qualities and before the ball leads on into Contact */}
+        <div className={s.foProj} data-k="foproj">
+          <div className={s.projNum} aria-hidden>
+            <div data-k="projnum">{cv.studyProjects.map((p, k) => <span key={p.no} data-num-out={k}><span data-num-in={k}>{p.no}</span></span>)}</div>
+          </div>
+          {cv.studyProjects.map((p, i) => <Project key={p.no} p={p} i={i} n={cv.studyProjects.length} />)}
+        </div>
         <div className={s.foNight} data-k="fonight" aria-hidden />
       </div>
+      {/* the ball rolls across as night falls, through the dark between the scenes, and leaves on the right just as
+          Contact's own ball comes in from the left. Outside the pinned stage, held to the screen. */}
+      <div className={s.foBall} data-k="foball" aria-hidden><Img n="ball-pattern" /><Img n="ball-shade" /></div>
     </section>
 
     {/* ============ 06 contact: full time, the ball opens the last page ============ */}
@@ -272,13 +378,15 @@ const Pitch = memo(function Pitch({ go, copy, copied }: { go: (id: string) => vo
             <h2 id="contact-title" className={s.huge} data-k="cotitle">Let&apos;s <em>talk.</em></h2>
             <p className={s.body} data-co>{cv.status}. The quickest way to reach me is by email.</p>
             <div className={s.mailRow} data-co>
-              <a className={s.mail} href={email.href} data-magnetic>{email.value}</a>
+              <a className={s.mail} href={email.href} aria-label={`Send an email to ${email.value}`} data-magnetic>{email.value}</a>
               <button className={s.copy} onClick={copy}>{copied ? 'Copied ✓' : 'Copy email'}</button>
               <span className={s.sr} aria-live="polite">{copied ? 'Email address copied' : ''}</span>
             </div>
             <ul className={s.contactList} data-co>
               {cv.links.filter((l) => l.label !== 'Email').map((l) => (
-                <li key={l.label}><span>{l.label}</span>{l.href ? <a href={l.href} target="_blank" rel="noreferrer">{l.value} ↗</a> : <b>{l.value}</b>}</li>
+                <li key={l.label}><span>{l.label}</span>{l.href
+                  ? <a href={l.href} target="_blank" rel="noopener noreferrer" aria-label={`${l.label}: ${l.value} (opens in a new tab)`}>{l.value} ↗</a>
+                  : <b>{l.value}</b>}</li>
               ))}
             </ul>
           </div>
